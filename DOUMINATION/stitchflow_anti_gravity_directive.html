@@ -1,0 +1,795 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#0f0e0d;--ink2:#3a3835;--ink3:#6b6760;
+    --surface:#faf9f7;--card:#ffffff;--border:#e8e5e0;
+    --accent:#c2410c;--accent2:#1d4ed8;--accent3:#065f46;
+    --tag-bg:#f1f0ec;--tag-text:#3a3835;
+    --mono:'JetBrains Mono',monospace;
+    --sans:'Syne',sans-serif;
+  }
+  body{background:var(--surface);font-family:var(--sans);color:var(--ink);line-height:1.6}
+  .wrap{max-width:860px;margin:0 auto;padding:2rem 1.5rem 4rem}
+
+  .masthead{border-bottom:2px solid var(--ink);padding-bottom:1.5rem;margin-bottom:2rem}
+  .label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase;margin-bottom:.4rem}
+  .title{font-size:clamp(26px,4vw,40px);font-weight:800;line-height:1.1;letter-spacing:-.02em}
+  .title span{color:var(--accent)}
+  .subtitle{font-family:var(--mono);font-size:13px;color:var(--ink2);margin-top:.6rem}
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:1rem}
+  .badge{font-family:var(--mono);font-size:10px;padding:4px 10px;border:1px solid var(--border);border-radius:3px;color:var(--ink2);background:var(--tag-bg);letter-spacing:.06em}
+  .badge.hot{border-color:var(--accent);color:var(--accent);background:#fff5f0}
+  .badge.blue{border-color:var(--accent2);color:var(--accent2);background:#eff6ff}
+
+  .section{margin-bottom:2rem}
+  .sec-header{display:flex;align-items:center;gap:10px;border-top:1px solid var(--border);padding-top:1rem;margin-bottom:1rem}
+  .sec-num{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:28px}
+  .sec-title{font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .sec-tag{font-family:var(--mono);font-size:10px;margin-left:auto;color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:2px}
+
+  .stack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+  .stack-card{border:1px solid var(--border);border-radius:6px;padding:12px 14px;background:var(--card)}
+  .stack-card .layer{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-bottom:4px;letter-spacing:.08em}
+  .stack-card .tech{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:2px}
+  .stack-card .why{font-size:11px;color:var(--ink2);line-height:1.4}
+  .stack-card.primary{border-color:var(--accent);border-left:3px solid var(--accent)}
+
+  .feature-block{border:1px solid var(--border);border-radius:6px;background:var(--card);margin-bottom:10px;overflow:hidden}
+  .feat-head{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none;border-bottom:1px solid transparent;transition:background .15s}
+  .feat-head:hover{background:var(--tag-bg)}
+  .feat-head.open{border-bottom-color:var(--border)}
+  .feat-id{font-family:var(--mono);font-size:10px;color:var(--ink3);min-width:56px}
+  .feat-name{font-size:13px;font-weight:700}
+  .feat-priority{margin-left:auto;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:2px}
+  .p-critical{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+  .p-high{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+  .p-core{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+  .feat-body{display:none;padding:12px 14px;font-size:12.5px;color:var(--ink2);line-height:1.7}
+  .feat-body.open{display:block}
+  .feat-body code{font-family:var(--mono);font-size:11.5px;background:var(--tag-bg);padding:1px 5px;border-radius:3px;color:var(--ink)}
+
+  .schema-table{width:100%;border-collapse:collapse;font-size:12px}
+  .schema-table th{font-family:var(--mono);font-size:10px;text-align:left;padding:6px 10px;border-bottom:2px solid var(--ink);color:var(--ink3);letter-spacing:.08em}
+  .schema-table td{padding:5px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  .schema-table tr:last-child td{border-bottom:none}
+  .schema-table td:first-child{font-family:var(--mono);font-size:11px;color:var(--accent2);font-weight:600}
+  .schema-table td:nth-child(2){font-family:var(--mono);font-size:10px;color:var(--accent3)}
+  .schema-table td:nth-child(3){color:var(--ink2);font-size:11.5px}
+  .pk{font-family:var(--mono);font-size:9px;background:#fef3c7;color:#92400e;padding:1px 4px;border-radius:2px;margin-left:4px}
+  .fk{font-family:var(--mono);font-size:9px;background:#eff6ff;color:#1e40af;padding:1px 4px;border-radius:2px;margin-left:4px}
+
+  .schema-name{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.08em;margin:1.2rem 0 .4rem;padding-left:2px;border-left:2px solid var(--accent)}
+
+  .endpoint-row{display:grid;grid-template-columns:64px 1fr auto;gap:8px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px}
+  .endpoint-row:last-child{border-bottom:none}
+  .method{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;text-align:center}
+  .get{background:#dcfce7;color:#166534}
+  .post{background:#dbeafe;color:#1e40af}
+  .patch{background:#fef3c7;color:#92400e}
+  .delete{background:#fee2e2;color:#991b1b}
+  .endpoint-path{font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+  .endpoint-desc{font-size:11px;color:var(--ink3);text-align:right}
+
+  .copy-section{margin-top:2rem;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .copy-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--ink);color:#f5f5f0}
+  .copy-label{font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+  .copy-btn{font-family:var(--mono);font-size:11px;padding:4px 12px;border:1px solid #6b6760;border-radius:3px;background:transparent;color:#c8c5c0;cursor:pointer;transition:all .15s}
+  .copy-btn:hover{background:#3a3835;border-color:#9a9790;color:#fff}
+  .copy-btn.done{background:#065f46;border-color:#065f46;color:#fff}
+  .prompt-box{padding:16px;font-family:var(--mono);font-size:11.5px;line-height:1.8;color:var(--ink2);background:#faf9f7;max-height:340px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+  .prompt-box::-webkit-scrollbar{width:4px}
+  .prompt-box::-webkit-scrollbar-track{background:transparent}
+  .prompt-box::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+  .flow-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 0}
+  .flow-step{font-size:12px;font-weight:600;padding:6px 12px;border-radius:4px;white-space:nowrap}
+  .flow-arr{color:var(--ink3);font-size:13px}
+  .s-pend{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+  .s-conf{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe}
+  .s-cut{background:#faf5ff;color:#6b21a8;border:1px solid #e9d5ff}
+  .s-sti{background:#fdf4ff;color:#86198f;border:1px solid #f0abfc}
+  .s-qc{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+  .s-rdy{background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7}
+
+  .uid-demo{font-family:var(--mono);font-size:13px;background:#0f0e0d;color:#a7f3d0;padding:14px 18px;border-radius:6px;line-height:2}
+  .uid-demo span.k{color:#93c5fd}
+  .uid-demo span.v{color:#fde68a}
+  .uid-demo span.c{color:#6b7280}
+
+  .footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--ink3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+
+<div class="wrap">
+  <div class="masthead">
+    <div class="label">Anti-Gravity Engine — Developer Directive v2.0</div>
+    <h1 class="title">StitchFlow <span>Master Prompt</span></h1>
+    <div class="subtitle">Tailor-Client Digital Ecosystem · Cross-Platform · Real-Time · Production-Grade</div>
+    <div class="badges">
+      <span class="badge hot">CONFIDENTIAL</span>
+      <span class="badge hot">SPRINT-READY</span>
+      <span class="badge blue">Flutter + Node.js + PostgreSQL</span>
+      <span class="badge blue">Firebase RT</span>
+      <span class="badge">Supabase</span>
+      <span class="badge">Cloudinary</span>
+      <span class="badge">Google Maps</span>
+    </div>
+  </div>
+
+  <!-- SECTION 1: STACK -->
+  <div class="section">
+    <div class="sec-header">
+      <span class="sec-num">01</span>
+      <span class="sec-title">Best-in-Class Technology Stack</span>
+      <span class="sec-tag">FOUNDATION</span>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-card primary">
+        <div class="layer">FRONTEND</div>
+        <div class="tech">Flutter 3.x</div>
+        <div class="why">Single codebase → iOS, Android, Web. Skia rendering = native 60fps. Dart type-safety.</div>
+      </div>
+      <div class="stack-card primary">
+        <div class="layer">BACKEND API</div>
+        <div class="tech">Node.js + TypeScript</div>
+        <div class="why">Express/Fastify. Full type-safety, async I/O, huge ecosystem. Shared types with Flutter via OpenAPI.</div>
+      </div>
+      <div class="stack-card primary">
+        <div class="layer">DATABASE</div>
+        <div class="tech">PostgreSQL via Supabase</div>
+        <div class="why">Relational integrity for measurements + orders. Supabase = instant REST, auth, realtime subscriptions.</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer">REAL-TIME</div>
+        <div class="tech">Firebase RTDB</div>
+        <div class="why">WebSocket chat at sub-200ms. FCM push included. Supabase Realtime as backup.</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer">MEDIA</div>
+        <div class="tech">Cloudinary</div>
+        <div class="why">Auto WebP compression, CDN delivery, upload presets for portfolio galleries.</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer">AUTH</div>
+        <div class="tech">Supabase Auth + JWT</div>
+        <div class="why">Email/OTP/Google OAuth. Role claim in JWT payload. RBAC enforced at Row Level Security.</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer">MAPS</div>
+        <div class="tech">Google Maps Platform</div>
+        <div class="why">Places Autocomplete for tailor onboarding. GeoPoint stored for proximity search.</div>
+      </div>
+      <div class="stack-card">
+        <div class="layer">DEVOPS</div>
+        <div class="tech">Docker + GH Actions</div>
+        <div class="why">Containerised API on Cloud Run. Zero-downtime deploys. Env-per-branch preview URLs.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: FEATURES -->
+  <div class="section">
+    <div class="sec-header">
+      <span class="sec-num">02</span>
+      <span class="sec-title">Anti-Gravity Feature Logic</span>
+      <span class="sec-tag">CORE REQUIREMENTS</span>
+    </div>
+
+    <div class="feature-block">
+      <div class="feat-head" onclick="toggle(this)">
+        <span class="feat-id">AG-001</span>
+        <span class="feat-name">Dual-Entry Gateway & Role Architecture</span>
+        <span class="feat-priority p-critical">CRITICAL</span>
+      </div>
+      <div class="feat-body">
+        Landing screen renders two primary CTAs: <code>Join as Tailor</code> and <code>Join as Client</code>. Role is stored as a JWT claim (<code>role: "TAILOR" | "CLIENT" | "ADMIN"</code>) and never re-selectable post-verification. A single Flutter widget tree uses a <code>RoleRouter</code> provider that injects either the <code>TailorShell</code> or <code>ClientShell</code> navigation scaffold — shared codebase, divergent UX. Supabase Row Level Security (RLS) policies enforce role isolation at the database layer independently of the API.
+      </div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feat-head" onclick="toggle(this)">
+        <span class="feat-id">AG-002</span>
+        <span class="feat-name">Measurement Vault — Asymmetric Access Control</span>
+        <span class="feat-priority p-critical">CRITICAL</span>
+      </div>
+      <div class="feat-body">
+        The <code>measurements</code> table is guarded by a triple gate: (1) JWT RBAC check at API middleware, (2) Supabase RLS policy: <code>USING (tailor_id = auth.uid() AND EXISTS (SELECT 1 FROM tailor_client_links WHERE tailor_id = auth.uid() AND client_id = measurements.client_id))</code>, (3) client app renders the vault as read-only (<code>MeasurementVaultReadOnlyWidget</code>). Writes require an active <code>tailor_client_link</code> record. Every write creates a new versioned row — no in-place updates. The <code>is_current</code> flag flips via a DB trigger.
+      </div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feat-head" onclick="toggle(this)">
+        <span class="feat-id">AG-003</span>
+        <span class="feat-name">Searchable ID System — TR/CL Alphanumeric Keys</span>
+        <span class="feat-priority p-critical">CRITICAL</span>
+      </div>
+      <div class="feat-body">
+        On registration confirmation, the backend generates a human-readable ID using: <code>PREFIX-CITY_CODE-ZERO_PADDED_SEQUENCE</code>. Example: <code>TR-Mardan-001</code>, <code>CL-Karachi-042</code>. The prefix is role-derived. City code is extracted from the Google Maps Place result (locality component, max 8 chars, uppercased). Sequence is an auto-increment from a <code>id_sequences</code> table partitioned by role+city. This ID is the primary search key on the Client's <code>Track Order</code> screen — a single input that fires a debounced API call returning the live delivery checklist.
+        <br><br>
+        <div class="uid-demo">
+          <span class="c">// ID generation pseudocode (TypeScript)</span><br>
+          <span class="k">const</span> city = <span class="v">extractLocality</span>(googleMapsResult); <span class="c">// "Mardan"</span><br>
+          <span class="k">const</span> seq = <span class="v">await</span> db.nextVal(<span class="v">`seq_${role}_${city}`</span>);<br>
+          <span class="k">const</span> id = <span class="v">`${role==='TAILOR'?'TR':'CL'}-${city}-${seq.toString().padStart(3,'0')}`</span>;
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feat-head" onclick="toggle(this)">
+        <span class="feat-id">AG-004</span>
+        <span class="feat-name">Capacity Gate & Booking Approval Workflow</span>
+        <span class="feat-priority p-high">HIGH</span>
+      </div>
+      <div class="feat-body">
+        Tailor profile stores <code>max_active_orders</code> (integer, 1–50) and <code>current_active_orders</code> (maintained by DB trigger on order status change). Before a booking is created, the <code>BookingService.createBooking()</code> method runs a serialised check inside a PostgreSQL transaction: <code>SELECT current_active_orders FROM tailor_profiles WHERE id = $tailorId FOR UPDATE</code> — if <code>current >= max</code>, throw <code>CAPACITY_EXCEEDED</code> (HTTP 409). If under capacity, the order is inserted with status <code>PENDING</code>. Tailor receives FCM push and in-app queue entry. Approval sets status <code>CONFIRMED</code> and increments the counter. Rejection requires a reason code from a predefined enum.
+      </div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feat-head" onclick="toggle(this)">
+        <span class="feat-id">AG-005</span>
+        <span class="feat-name">Live Delivery Checklist — State Machine</span>
+        <span class="feat-priority p-high">HIGH</span>
+      </div>
+      <div class="feat-body">
+        Order status is an append-only state machine. Valid transitions (Tailor-only):
+        <div class="flow-row">
+          <span class="flow-step s-pend">PENDING</span><span class="flow-arr">→</span>
+          <span class="flow-step s-conf">CONFIRMED</span><span class="flow-arr">→</span>
+          <span class="flow-step s-cut">CUTTING</span><span class="flow-arr">→</span>
+          <span class="flow-step s-sti">STITCHING</span><span class="flow-arr">→</span>
+          <span class="flow-step s-qc">QUALITY CHECK</span><span class="flow-arr">→</span>
+          <span class="flow-step s-rdy">READY</span>
+        </div>
+        Each transition is a <code>PATCH /orders/:id/stage</code> call that appends to <code>stage_history[]</code> (immutable audit log). Client gets FCM push + Supabase Realtime update. The Flutter <code>DeliveryTracker</code> widget uses a <code>StreamBuilder</code> on the Supabase subscription — zero polling, zero page refresh.
+      </div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feat-head" onclick="toggle(this)">
+        <span class="feat-id">AG-006</span>
+        <span class="feat-name">Communication Layer — Call Button + Real-Time Chat</span>
+        <span class="feat-priority p-core">CORE</span>
+      </div>
+      <div class="feat-body">
+        <strong>One-Tap Call:</strong> Tailor phone (E.164 format) stored in <code>users.phone</code>. Visible to Clients only after a confirmed booking exists. Flutter: <code>url_launcher</code> package fires <code>tel:{phone}</code>. Web: renders as a clipboard-copy button.<br><br>
+        <strong>Real-Time Chat:</strong> Firebase Realtime Database node: <code>/chats/{chatChannelId}/messages/{pushId}</code>. Channel auto-created on booking confirmation. Flutter uses <code>firebase_database</code> SDK with <code>StreamBuilder</code> for zero-latency message rendering. Supports: <code>TEXT</code>, <code>IMAGE</code> (Cloudinary upload → URL sent), <code>SYSTEM</code> (auto-generated on stage transitions). FCM dispatched via Cloud Function trigger on new message when recipient is backgrounded.
+      </div>
+    </div>
+
+    <div class="feature-block">
+      <div class="feat-head" onclick="toggle(this)">
+        <span class="feat-id">AG-007</span>
+        <span class="feat-name">Portfolio Gallery & Dynamic Pricing Display</span>
+        <span class="feat-priority p-core">CORE</span>
+      </div>
+      <div class="feat-body">
+        Tailors upload portfolio images via a direct Cloudinary upload widget (signed preset — server issues a short-lived signature, client POSTs directly to Cloudinary CDN, URL returned and stored in <code>tailor_profiles.portfolio_urls[]</code> — max 50 items). Gallery renders as a <code>SliverGrid</code> in Flutter (3-column on mobile, 4-column on web). Tap opens a full-screen <code>PageView</code> with pinch-to-zoom.<br><br>
+        Pricing: <code>price_per_suit_min</code> / <code>price_per_suit_max</code> displayed as a range badge on the public profile. Editable only in the Tailor dashboard. Currency: PKR (v1.0). Multi-currency is a v2.0 feature flag.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: SCHEMA -->
+  <div class="section">
+    <div class="sec-header">
+      <span class="sec-num">03</span>
+      <span class="sec-title">Database Schema Blueprint</span>
+      <span class="sec-tag">PostgreSQL</span>
+    </div>
+
+    <div class="schema-name">TABLE: users</div>
+    <table class="schema-table">
+      <thead><tr><th>COLUMN</th><th>TYPE</th><th>NOTES</th></tr></thead>
+      <tbody>
+        <tr><td>id <span class="pk">PK</span></td><td>uuid</td><td>Supabase auth.uid() — immutable</td></tr>
+        <tr><td>readable_id</td><td>varchar(24)</td><td>e.g. TR-Mardan-001 · unique · indexed</td></tr>
+        <tr><td>role</td><td>enum</td><td>TAILOR | CLIENT | ADMIN</td></tr>
+        <tr><td>full_name</td><td>varchar(100)</td><td>Display name / business name</td></tr>
+        <tr><td>phone</td><td>varchar(20)</td><td>E.164 format · OTP-verified</td></tr>
+        <tr><td>email</td><td>varchar(255)</td><td>Unique · auth provider</td></tr>
+        <tr><td>location_address</td><td>text</td><td>Google Maps formatted address</td></tr>
+        <tr><td>location_lat</td><td>numeric(10,7)</td><td>GeoPoint latitude</td></tr>
+        <tr><td>location_lng</td><td>numeric(10,7)</td><td>GeoPoint longitude</td></tr>
+        <tr><td>portfolio_urls</td><td>text[]</td><td>Cloudinary CDN URLs · max 50</td></tr>
+        <tr><td>is_verified</td><td>boolean</td><td>Admin-approved flag</td></tr>
+        <tr><td>created_at</td><td>timestamptz</td><td>Default NOW()</td></tr>
+      </tbody>
+    </table>
+
+    <div class="schema-name">TABLE: tailor_profiles</div>
+    <table class="schema-table">
+      <thead><tr><th>COLUMN</th><th>TYPE</th><th>NOTES</th></tr></thead>
+      <tbody>
+        <tr><td>tailor_id <span class="pk">PK</span></td><td>uuid</td><td>FK → users.id · 1:1</td></tr>
+        <tr><td>specializations</td><td>text[]</td><td>Suits, Shalwar, Bridal, etc.</td></tr>
+        <tr><td>max_active_orders</td><td>smallint</td><td>Capacity ceiling 1–50</td></tr>
+        <tr><td>current_active_orders</td><td>smallint</td><td>Maintained by DB trigger</td></tr>
+        <tr><td>availability_status</td><td>enum</td><td>ACTIVE | ON_LEAVE | FULLY_BOOKED</td></tr>
+        <tr><td>price_per_suit_min</td><td>numeric(10,2)</td><td>PKR</td></tr>
+        <tr><td>price_per_suit_max</td><td>numeric(10,2)</td><td>PKR</td></tr>
+      </tbody>
+    </table>
+
+    <div class="schema-name">TABLE: measurements</div>
+    <table class="schema-table">
+      <thead><tr><th>COLUMN</th><th>TYPE</th><th>NOTES</th></tr></thead>
+      <tbody>
+        <tr><td>id <span class="pk">PK</span></td><td>varchar(48)</td><td>SF-M-{T4}-{C4}-{epoch}</td></tr>
+        <tr><td>client_id <span class="fk">FK</span></td><td>uuid</td><td>→ users.id</td></tr>
+        <tr><td>tailor_id <span class="fk">FK</span></td><td>uuid</td><td>→ users.id · write-locked</td></tr>
+        <tr><td>version</td><td>smallint</td><td>Auto-increment per client-tailor pair</td></tr>
+        <tr><td>is_current</td><td>boolean</td><td>Flipped by trigger on new version</td></tr>
+        <tr><td>neck, chest, waist, hips</td><td>numeric(5,1)</td><td>cm · nullable</td></tr>
+        <tr><td>shoulder_width, sleeve_length</td><td>numeric(5,1)</td><td>cm · nullable</td></tr>
+        <tr><td>inseam, thigh, shirt_len, pant_len</td><td>numeric(5,1)</td><td>cm · nullable</td></tr>
+        <tr><td>custom_notes</td><td>varchar(500)</td><td>Tailor annotations</td></tr>
+        <tr><td>recorded_at</td><td>timestamptz</td><td>Default NOW()</td></tr>
+      </tbody>
+    </table>
+
+    <div class="schema-name">TABLE: orders</div>
+    <table class="schema-table">
+      <thead><tr><th>COLUMN</th><th>TYPE</th><th>NOTES</th></tr></thead>
+      <tbody>
+        <tr><td>id <span class="pk">PK</span></td><td>varchar(48)</td><td>SF-O-{T4}-{C4}-{epoch}</td></tr>
+        <tr><td>tailor_id <span class="fk">FK</span></td><td>uuid</td><td>→ users.id</td></tr>
+        <tr><td>client_id <span class="fk">FK</span></td><td>uuid</td><td>→ users.id</td></tr>
+        <tr><td>garment_type</td><td>varchar(50)</td><td>From tailor's specialization list</td></tr>
+        <tr><td>booking_status</td><td>enum</td><td>PENDING|CONFIRMED|REJECTED|CANCELLED|COMPLETED</td></tr>
+        <tr><td>delivery_stage</td><td>enum</td><td>CUTTING|STITCHING|QUALITY_CHECK|READY</td></tr>
+        <tr><td>stage_history</td><td>jsonb[]</td><td>{stage, advanced_at, by} — immutable log</td></tr>
+        <tr><td>chat_channel_id</td><td>varchar(64)</td><td>Firebase RTDB node reference</td></tr>
+        <tr><td>preferred_date_start</td><td>date</td><td>Client's earliest ready date</td></tr>
+        <tr><td>preferred_date_end</td><td>date</td><td>Client's latest ready date</td></tr>
+        <tr><td>special_instructions</td><td>text</td><td>Max 500 chars</td></tr>
+        <tr><td>reference_image_urls</td><td>text[]</td><td>Cloudinary URLs · max 5</td></tr>
+        <tr><td>rejection_reason</td><td>varchar(50)</td><td>Enum code on REJECTED</td></tr>
+        <tr><td>measurement_id <span class="fk">FK</span></td><td>varchar(48)</td><td>→ measurements.id · nullable</td></tr>
+        <tr><td>created_at, confirmed_at, completed_at</td><td>timestamptz</td><td>Lifecycle timestamps</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECTION 4: API -->
+  <div class="section">
+    <div class="sec-header">
+      <span class="sec-num">04</span>
+      <span class="sec-title">Core API Endpoints</span>
+      <span class="sec-tag">REST v1</span>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--card)">
+      <div class="endpoint-row" style="background:var(--tag-bg)"><span></span><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.08em">AUTHENTICATION</span><span></span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/api/v1/auth/register</span><span class="endpoint-desc">Register + assign readable_id</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/api/v1/auth/login</span><span class="endpoint-desc">JWT + refresh token</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/api/v1/auth/verify-otp</span><span class="endpoint-desc">Phone OTP verification</span></div>
+
+      <div class="endpoint-row" style="background:var(--tag-bg)"><span></span><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.08em">SEARCH & PROFILES</span><span></span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/api/v1/tailors/search</span><span class="endpoint-desc">Filter by city, spec, availability</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/api/v1/tailors/:id</span><span class="endpoint-desc">Public profile + portfolio</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/api/v1/track/:clientReadableId</span><span class="endpoint-desc">Live delivery checklist by ID</span></div>
+
+      <div class="endpoint-row" style="background:var(--tag-bg)"><span></span><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.08em">MEASUREMENTS</span><span></span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/api/v1/measurements</span><span class="endpoint-desc">Create (Tailor only)</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/api/v1/measurements/:clientId/current</span><span class="endpoint-desc">Latest measurement record</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/api/v1/measurements/:clientId/history</span><span class="endpoint-desc">All versions — audit trail</span></div>
+
+      <div class="endpoint-row" style="background:var(--tag-bg)"><span></span><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.08em">ORDERS & BOOKING</span><span></span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/api/v1/orders</span><span class="endpoint-desc">Create booking (capacity gate)</span></div>
+      <div class="endpoint-row"><span class="method patch">PATCH</span><span class="endpoint-path">/api/v1/orders/:id/approve</span><span class="endpoint-desc">Tailor approve → CONFIRMED</span></div>
+      <div class="endpoint-row"><span class="method patch">PATCH</span><span class="endpoint-path">/api/v1/orders/:id/reject</span><span class="endpoint-desc">Tailor reject + reason code</span></div>
+      <div class="endpoint-row"><span class="method patch">PATCH</span><span class="endpoint-path">/api/v1/orders/:id/stage</span><span class="endpoint-desc">Advance delivery stage (Tailor)</span></div>
+
+      <div class="endpoint-row" style="background:var(--tag-bg)"><span></span><span style="font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.08em">MEDIA</span><span></span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/api/v1/media/sign</span><span class="endpoint-desc">Issue Cloudinary signed preset</span></div>
+      <div class="endpoint-row"><span class="method delete">DEL</span><span class="endpoint-path">/api/v1/media/:publicId</span><span class="endpoint-desc">Remove portfolio image</span></div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: COPY-PASTE PROMPT -->
+  <div class="section">
+    <div class="sec-header">
+      <span class="sec-num">05</span>
+      <span class="sec-title">Anti-Gravity Master Prompt</span>
+      <span class="sec-tag">COPY-PASTEABLE</span>
+    </div>
+    <div class="copy-section">
+      <div class="copy-header">
+        <span class="copy-label">DEVELOPER_MASTER_PROMPT.txt — feed directly into Anti-Gravity / Cursor / v0</span>
+        <button class="copy-btn" id="copyBtn" onclick="copyPrompt()">Copy All</button>
+      </div>
+      <div class="prompt-box" id="promptBox"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>StitchFlow · Anti-Gravity Directive v2.0 · IEEE 830 aligned</span>
+    <span>Classification: CONFIDENTIAL — Internal Dev Use Only</span>
+  </div>
+</div>
+
+<script>
+function toggle(el){
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+
+const PROMPT = `=============================================================================
+  ANTI-GRAVITY ENGINE — DEVELOPER MASTER PROMPT
+  Project: StitchFlow — Tailor-Client Digital Ecosystem
+  Version: 2.0 | Classification: Confidential Internal Directive
+=============================================================================
+
+## MISSION STATEMENT
+Build a cross-platform (iOS / Android / Web), production-grade application
+that digitises the bespoke tailoring workflow. Generate the complete
+repository structure, database migrations, core API endpoints, and Flutter
+UI scaffolding in a single execution pass.
+
+─────────────────────────────────────────────────────────────────────────────
+## 1. REPOSITORY STRUCTURE
+─────────────────────────────────────────────────────────────────────────────
+
+stitchflow/
+├── apps/
+│   └── flutter/                  # Cross-platform Flutter app
+│       ├── lib/
+│       │   ├── core/             # Theme, router, providers
+│       │   ├── features/
+│       │   │   ├── auth/         # Login, register, OTP
+│       │   │   ├── tailor/       # Dashboard, portfolio, bookings
+│       │   │   ├── client/       # Vault, track, discover
+│       │   │   ├── chat/         # Firebase RT messaging
+│       │   │   ├── orders/       # Booking flow, tracker
+│       │   │   └── search/       # ID search, map view
+│       │   └── shared/           # Widgets, models, utils
+│       └── pubspec.yaml
+├── services/
+│   └── api/                      # Node.js + TypeScript REST API
+│       ├── src/
+│       │   ├── modules/
+│       │   │   ├── auth/
+│       │   │   ├── users/
+│       │   │   ├── measurements/
+│       │   │   ├── orders/
+│       │   │   ├── search/
+│       │   │   └── media/
+│       │   ├── middleware/       # JWT, RBAC, capacity guard
+│       │   ├── db/               # Prisma client + Supabase
+│       │   └── main.ts
+│       ├── prisma/
+│       │   └── schema.prisma
+│       └── Dockerfile
+├── infra/
+│   ├── terraform/                # GCP Cloud Run + Firebase
+│   └── docker-compose.yml
+└── .github/workflows/            # CI/CD pipelines
+
+─────────────────────────────────────────────────────────────────────────────
+## 2. TECHNOLOGY STACK (NON-NEGOTIABLE)
+─────────────────────────────────────────────────────────────────────────────
+
+Frontend:    Flutter 3.x (Dart) — single codebase for iOS, Android, Web
+Backend:     Node.js 20 LTS + TypeScript + Fastify framework
+Database:    PostgreSQL 15 via Supabase (Prisma ORM for migrations)
+Realtime:    Firebase Realtime Database (chat) + Supabase Realtime (orders)
+Auth:        Supabase Auth (Email/OTP/Google OAuth) → JWT with role claims
+Storage:     Cloudinary (portfolio + reference images, auto WebP)
+Maps:        Google Maps Platform (Places API + Maps Flutter SDK)
+Push:        Firebase Cloud Messaging (FCM) via Cloud Functions triggers
+Deploy:      Docker → Google Cloud Run (API) + Firebase Hosting (web build)
+CI/CD:       GitHub Actions (test → build → deploy on main merge)
+
+─────────────────────────────────────────────────────────────────────────────
+## 3. USER ROLES & DUAL-PORTAL LOGIC
+─────────────────────────────────────────────────────────────────────────────
+
+ROLE IMPLEMENTATION:
+- JWT payload must include: { uid, role: "TAILOR" | "CLIENT" | "ADMIN", readable_id, is_verified }
+- Flutter: RoleRouter widget reads role from AuthProvider; renders TailorShell
+  or ClientShell scaffold. Shared widget library; divergent feature sets.
+- Supabase RLS: All tables have row-level policies keyed on auth.uid() and role.
+- Role is immutable after account creation and admin verification.
+
+TAILOR SHELL (Active Workload Dashboard):
+- Primary screen: KPI cards (Active Orders / Pending Approvals / Capacity %)
+- Bottom nav: Dashboard | Bookings Queue | Measurement Entry | Portfolio | Profile
+- Booking Queue: ListView of PENDING orders with Approve / Reject action tiles
+- Delivery Board: Kanban-style columns for each production stage
+
+CLIENT SHELL (Search & Track Interface):
+- Primary screen: Prominent ID search bar + "Track My Order" CTA
+- Entering a valid Client Readable ID (e.g. CL-Karachi-042) returns live checklist
+- Bottom nav: Discover Tailors | My Orders | Measurement Vault | Chat | Profile
+- Measurement Vault: Read-only, versioned display of all recorded measurements
+
+─────────────────────────────────────────────────────────────────────────────
+## 4. DATABASE SCHEMA (Generate Full Prisma Migration)
+─────────────────────────────────────────────────────────────────────────────
+
+-- ENUMS
+CREATE TYPE user_role AS ENUM ('TAILOR', 'CLIENT', 'ADMIN');
+CREATE TYPE availability_status AS ENUM ('ACTIVE', 'ON_LEAVE', 'FULLY_BOOKED');
+CREATE TYPE booking_status AS ENUM ('PENDING','CONFIRMED','REJECTED','CANCELLED','COMPLETED');
+CREATE TYPE delivery_stage AS ENUM ('MEASUREMENT_TAKEN','CUTTING','STITCHING','QUALITY_CHECK','READY');
+
+-- USERS (base table for both roles)
+CREATE TABLE users (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  readable_id       VARCHAR(24) UNIQUE NOT NULL,  -- e.g. TR-Mardan-001
+  role              user_role NOT NULL,
+  full_name         VARCHAR(100) NOT NULL,
+  phone             VARCHAR(20) UNIQUE NOT NULL,  -- E.164
+  email             VARCHAR(255) UNIQUE NOT NULL,
+  location_address  TEXT,
+  location_lat      NUMERIC(10,7),
+  location_lng      NUMERIC(10,7),
+  portfolio_urls    TEXT[] DEFAULT '{}',          -- max 50, Cloudinary CDN
+  profile_photo_url TEXT,
+  is_verified       BOOLEAN DEFAULT FALSE,
+  account_status    VARCHAR(20) DEFAULT 'ACTIVE',
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- TAILOR PROFILES (1:1 with users where role = TAILOR)
+CREATE TABLE tailor_profiles (
+  tailor_id             UUID PRIMARY KEY REFERENCES users(id),
+  specializations       TEXT[] NOT NULL DEFAULT '{}',
+  max_active_orders     SMALLINT NOT NULL DEFAULT 10 CHECK (max_active_orders BETWEEN 1 AND 50),
+  current_active_orders SMALLINT NOT NULL DEFAULT 0,
+  availability_status   availability_status DEFAULT 'ACTIVE',
+  price_per_suit_min    NUMERIC(10,2),
+  price_per_suit_max    NUMERIC(10,2),
+  total_completed       INTEGER DEFAULT 0
+);
+
+-- TAILOR-CLIENT LINKS (governs measurement write access + phone visibility)
+CREATE TABLE tailor_client_links (
+  id          VARCHAR(32) PRIMARY KEY,  -- SF-L-{T4}-{C4}
+  tailor_id   UUID NOT NULL REFERENCES users(id),
+  client_id   UUID NOT NULL REFERENCES users(id),
+  linked_at   TIMESTAMPTZ DEFAULT NOW(),
+  order_count INTEGER DEFAULT 1,
+  is_active   BOOLEAN DEFAULT TRUE,
+  UNIQUE(tailor_id, client_id)
+);
+
+-- MEASUREMENTS (versioned, append-only)
+CREATE TABLE measurements (
+  id                  VARCHAR(48) PRIMARY KEY,  -- SF-M-{T4}-{C4}-{epoch}
+  client_id           UUID NOT NULL REFERENCES users(id),
+  tailor_id           UUID NOT NULL REFERENCES users(id),
+  version             SMALLINT NOT NULL DEFAULT 1,
+  parent_id           VARCHAR(48) REFERENCES measurements(id),
+  is_current          BOOLEAN NOT NULL DEFAULT TRUE,
+  neck                NUMERIC(5,1),
+  chest               NUMERIC(5,1),
+  waist               NUMERIC(5,1),
+  hips                NUMERIC(5,1),
+  shoulder_width      NUMERIC(5,1),
+  sleeve_length       NUMERIC(5,1),
+  inseam              NUMERIC(5,1),
+  thigh               NUMERIC(5,1),
+  shirt_length        NUMERIC(5,1),
+  pant_length         NUMERIC(5,1),
+  custom_notes        VARCHAR(500),
+  recorded_at         TIMESTAMPTZ DEFAULT NOW()
+);
+-- Trigger: on INSERT, set is_current=FALSE on all previous rows for same tailor+client pair
+
+-- ORDERS (core booking + delivery tracking)
+CREATE TABLE orders (
+  id                    VARCHAR(48) PRIMARY KEY,  -- SF-O-{T4}-{C4}-{epoch}
+  tailor_id             UUID NOT NULL REFERENCES users(id),
+  client_id             UUID NOT NULL REFERENCES users(id),
+  garment_type          VARCHAR(50) NOT NULL,
+  booking_status        booking_status NOT NULL DEFAULT 'PENDING',
+  delivery_stage        delivery_stage,
+  stage_history         JSONB[] DEFAULT '{}',  -- {stage, advanced_at, advanced_by}
+  chat_channel_id       VARCHAR(64),           -- Firebase RTDB node key
+  preferred_date_start  DATE,
+  preferred_date_end    DATE,
+  special_instructions  TEXT,
+  reference_image_urls  TEXT[] DEFAULT '{}',
+  rejection_reason      VARCHAR(50),
+  rejection_notes       TEXT,
+  measurement_id        VARCHAR(48) REFERENCES measurements(id),
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  confirmed_at          TIMESTAMPTZ,
+  completed_at          TIMESTAMPTZ,
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+-- Trigger: on status → CONFIRMED: increment tailor_profiles.current_active_orders
+-- Trigger: on status → COMPLETED/CANCELLED: decrement current_active_orders
+
+-- ID SEQUENCES (for readable_id generation)
+CREATE TABLE id_sequences (
+  key       VARCHAR(30) PRIMARY KEY,  -- e.g. TAILOR_MARDAN
+  last_val  INTEGER NOT NULL DEFAULT 0
+);
+
+─────────────────────────────────────────────────────────────────────────────
+## 5. ANTI-GRAVITY FEATURE IMPLEMENTATION SPECS
+─────────────────────────────────────────────────────────────────────────────
+
+[AG-001] READABLE ID GENERATION
+  Service: IdGenerationService.generate(role, googlePlaceResult)
+  1. Extract locality from Place result → sanitise → uppercase → max 8 chars
+  2. key = `${role}_${locality}` (e.g. TAILOR_MARDAN)
+  3. PostgreSQL: UPDATE id_sequences SET last_val = last_val + 1
+     WHERE key = $key RETURNING last_val  [serialised transaction]
+  4. Return: `${prefix}-${locality}-${lastVal.toString().padStart(3,'0')}`
+  prefix: role === 'TAILOR' ? 'TR' : 'CL'
+
+[AG-002] MEASUREMENT VAULT — WRITE ACCESS GATE
+  Middleware: MeasurementGuard
+  1. Verify JWT role === 'TAILOR'
+  2. Verify tailor_client_links record exists (tailor_id=uid, client_id=body.client_id, is_active=true)
+  3. If no link → HTTP 403 with code LINK_NOT_FOUND
+  4. Create new measurement row (version = prev_max + 1, is_current = true)
+  5. DB trigger flips previous is_current → false
+  Supabase RLS: USING (tailor_id = auth.uid() AND is_current = true)
+
+[AG-003] CAPACITY GATE (Booking Creation)
+  Service: BookingService.createBooking()
+  BEGIN TRANSACTION;
+    SELECT current_active_orders, max_active_orders, availability_status
+    FROM tailor_profiles WHERE tailor_id = $tailorId FOR UPDATE;
+    IF current >= max OR status != 'ACTIVE':
+      ROLLBACK; THROW CapacityExceededException (HTTP 409);
+    INSERT INTO orders (...) VALUES (...) RETURNING id;
+  COMMIT;
+  Dispatch FCM to tailor device tokens on success.
+
+[AG-004] ORDER STATE MACHINE
+  PATCH /api/v1/orders/:id/stage
+  Allowed transitions (Tailor only, in sequence):
+    CONFIRMED → CUTTING → STITCHING → QUALITY_CHECK → READY
+  Validation: new stage must be the immediate next in the enum sequence.
+  On each advance:
+    1. UPDATE orders SET delivery_stage = $newStage
+    2. Append {stage: $newStage, advanced_at: NOW(), advanced_by: $uid} to stage_history
+    3. Trigger Supabase Realtime broadcast on orders channel (client StreamBuilder updates)
+    4. Dispatch FCM push to client: "Your order is now: {newStage}"
+    5. Write SYSTEM message to Firebase RTDB chat channel
+
+[AG-005] ID SEARCH → LIVE DELIVERY CHECKLIST
+  GET /api/v1/track/:readableId
+  1. Lookup users WHERE readable_id = :readableId AND role = 'CLIENT'
+  2. Fetch most recent CONFIRMED/active order for that client
+  3. Return: { order_id, garment_type, delivery_stage, stage_history,
+               tailor: { readable_id, business_name, phone* } }
+  *phone only if requesting user has confirmed booking with that tailor
+  Flutter: DeliveryTrackerWidget uses Supabase .stream() on orders
+  for zero-poll real-time updates.
+
+[AG-006] REAL-TIME CHAT
+  Firebase RTDB Structure:
+    /chats/{chatChannelId}/
+      metadata: { tailor_id, client_id, order_id, created_at }
+      messages/{pushId}: {
+        sender_id, sender_role, type: TEXT|IMAGE|SYSTEM,
+        content, media_url?, sent_at (server timestamp), is_read
+      }
+  Flutter: firebase_database StreamBuilder on messages node.
+  Image flow: client POSTs to POST /api/v1/media/sign → gets Cloudinary
+  signed preset → uploads directly → sends URL as IMAGE message.
+  Cloud Function trigger: on new message write → dispatch FCM to
+  recipient's registered device tokens (skip if sender).
+
+[AG-007] PORTFOLIO GALLERY
+  Upload flow: POST /api/v1/media/sign (server issues signed Cloudinary
+  upload preset, valid 60s) → Flutter uploads directly to Cloudinary CDN
+  → URL appended to tailor_profiles.portfolio_urls[] (max 50).
+  Flutter UI: SliverGrid (crossAxisCount: 3 mobile / 4 web), CachedNetworkImage,
+  PageView full-screen viewer with pinch-to-zoom on tap.
+  DELETE: removes URL from array + triggers Cloudinary destroy via API.
+
+─────────────────────────────────────────────────────────────────────────────
+## 6. API ENDPOINTS TO GENERATE
+─────────────────────────────────────────────────────────────────────────────
+
+AUTH
+  POST   /api/v1/auth/register           Register + generate readable_id
+  POST   /api/v1/auth/login              Return JWT + refresh token
+  POST   /api/v1/auth/refresh            Rotate access token
+  POST   /api/v1/auth/verify-otp         Phone verification
+  DELETE /api/v1/auth/logout             Invalidate refresh token
+
+USERS & PROFILES
+  GET    /api/v1/users/me                Own profile (role-aware response)
+  PATCH  /api/v1/users/me                Update profile fields
+  GET    /api/v1/tailors/search          ?city=&spec=&available=true
+  GET    /api/v1/tailors/:id             Public tailor profile + portfolio
+  PUT    /api/v1/tailors/me/availability Set ACTIVE|ON_LEAVE|FULLY_BOOKED
+
+SEARCH & TRACK
+  GET    /api/v1/track/:clientReadableId  Live delivery checklist
+
+MEASUREMENTS (Tailor auth required for writes)
+  POST   /api/v1/measurements             Create versioned record
+  GET    /api/v1/measurements/:clientId/current
+  GET    /api/v1/measurements/:clientId/history
+
+ORDERS
+  POST   /api/v1/orders                   Create booking (runs capacity gate)
+  GET    /api/v1/orders/:id               Order detail
+  GET    /api/v1/orders/tailor/queue      Pending queue (Tailor)
+  GET    /api/v1/orders/client/mine       Client's order list
+  PATCH  /api/v1/orders/:id/approve       Confirm + create link + create chat
+  PATCH  /api/v1/orders/:id/reject        Reject with reason enum
+  PATCH  /api/v1/orders/:id/cancel        Cancel (role-validated)
+  PATCH  /api/v1/orders/:id/stage         Advance delivery stage
+
+MEDIA
+  POST   /api/v1/media/sign               Cloudinary signed upload preset
+  DELETE /api/v1/media/:publicId          Remove image
+
+─────────────────────────────────────────────────────────────────────────────
+## 7. SECURITY MODEL
+─────────────────────────────────────────────────────────────────────────────
+
+- All endpoints except /auth/* require Authorization: Bearer {JWT}
+- Middleware execution order: RateLimiter → JwtVerify → RoleGuard → Handler
+- Supabase RLS: default DENY ALL; explicit ALLOW per table per operation
+- Measurement writes: triple-gated (JWT role + API middleware + RLS policy)
+- Phone numbers: returned only when requester has confirmed_booking with target
+- Media: Cloudinary signed presets (60s TTL); portfolio images public CDN;
+  chat/reference images served via short-lived signed download URLs
+- AES-256 encryption at rest for measurement data (Supabase Vault)
+- TLS 1.3 in transit — enforced at Cloud Run ingress
+
+─────────────────────────────────────────────────────────────────────────────
+## 8. NON-FUNCTIONAL TARGETS
+─────────────────────────────────────────────────────────────────────────────
+
+Performance:     p95 API response < 300ms | Chat latency < 200ms
+Scalability:     Horizontal scale to 50k users (Cloud Run auto-scaling)
+Availability:    99.9% SLA target
+Offline:         Flutter: measurement vault + order history cached locally
+Localisation:    English + Urdu (RTL) in v1.0
+Test Coverage:   ≥ 80% unit coverage on all service modules
+
+─────────────────────────────────────────────────────────────────────────────
+## 9. DELIVERABLES FROM THIS PROMPT
+─────────────────────────────────────────────────────────────────────────────
+
+The Anti-Gravity engine must output:
+  [x] Full Flutter project scaffold (all features stubbed + routing wired)
+  [x] Node.js/TypeScript API with all endpoints (Fastify + Prisma)
+  [x] Complete Prisma schema (schema.prisma) + SQL migration files
+  [x] Firebase RTDB security rules (chat isolation per order participants)
+  [x] Supabase RLS policies for all tables
+  [x] Docker Compose for local dev (API + Postgres + Firebase Emulator)
+  [x] GitHub Actions CI pipeline (lint → test → build → deploy)
+  [x] Postman/OpenAPI 3.0 collection for all endpoints
+  [x] README.md with setup, env variables, and architecture diagram
+
+─────────────────────────────────────────────────────────────────────────────
+## ANTI-GRAVITY PHILOSOPHY CONSTRAINTS
+─────────────────────────────────────────────────────────────────────────────
+
+FAST:       No over-engineering. No unused abstractions. Ship running code.
+WEIGHTLESS: Every service is stateless. State lives in DB or Firebase only.
+EFFICIENT:  One DB round-trip per request where possible. Batch where needed.
+TYPED:      Zero 'any' in TypeScript. Zero dynamic keys in Dart models.
+AUDITABLE:  Immutable logs for measurements and order stage history. Always.
+
+=============================================================================
+END OF ANTI-GRAVITY MASTER PROMPT — StitchFlow v2.0
+=============================================================================`;
+
+document.getElementById('promptBox').textContent = PROMPT;
+
+function copyPrompt(){
+  const btn = document.getElementById('copyBtn');
+  navigator.clipboard.writeText(PROMPT).then(()=>{
+    btn.textContent = 'Copied!';
+    btn.classList.add('done');
+    setTimeout(()=>{btn.textContent='Copy All';btn.classList.remove('done');}, 2500);
+  });
+}
+</script>

@@ -1,0 +1,1250 @@
+STITCHFLOW
+THE MASTER SOLUTION
+────────────────────────────────────────────────
+Software Requirements Specification  &  Software Design Description
+Bridging Every Gap That TailorMate, Darzee, RepairDesk & Atelierware Left Open
+────────────────────────────────────────────────
+Classification:  Confidential — Sprint-Ready Internal Document
+Standard:  IEEE 830 / IEEE 1016 Compliant
+Version:  1.0  |  Platform:  Flutter + Node.js + PostgreSQL + Firebase
+"The only platform where the Tailor gains a business OS, the Client gains data ownership, and both gain transparency."
+A. Competitive Landscape Analysis & Comparative Advantage
+A.1 The Existing Market — What They Do
+The tailoring software ecosystem currently comprises four dominant players. Based on direct product analysis, each addresses a subset of the problem but none closes the full loop between tailor-side operations and client-side transparency.
+Platform
+Primary Strength
+Business Model
+Target Market
+TailorMate
+Order/measurement CRM, invoicing, SMS notifications
+Freemium mobile app
+Independent tailors, small boutiques (India-focused)
+Darzee
+WhatsApp invoice sharing, portfolio URLs, regional languages
+SaaS subscription
+Boutique owners, fashion designers (India-focused)
+RepairDesk
+Full POS, appointment scheduling, multi-payment integration
+Per-store SaaS ($99+/mo)
+Repair shops adapting to tailoring workflows
+Atelierware
+Multi-branch management, barcode production tracking
+Enterprise SaaS
+Medium-to-large tailoring businesses
+Geelus
+Cloud POS, graphical measurement save, SMS marketing
+SaaS subscription
+Alterations & dry cleaning crossover
+A.2 The Critical Gaps — What None of Them Solve
+The following gap analysis is based on product documentation, user reviews, and feature audits of all five platforms. These are the structural voids that StitchFlow is purpose-built to fill.
+Gap ID
+The Problem
+Which Apps Fail Here
+Impact on Users
+GAP-001
+The Black Box Problem: Clients have zero visibility into what 'stitching' means for their specific garment. Notifications say 'order ready' — nothing in between.
+TailorMate, Darzee, DarzeeBook, Geelus
+Clients call repeatedly for updates; tailors waste ~2 hours/day on status calls
+GAP-002
+Measurement Lock-In: Measurements are stored in the tailor's account. If a client changes tailors, all measurement history is lost. The client owns nothing.
+All five platforms — measurements are tailor-property
+Client re-measurement costs, inconsistency across tailors, no data portability
+GAP-003
+No Client-Facing App or Portal: All existing apps are exclusively tailor-side tools. Clients interact via WhatsApp, SMS, or phone calls — zero in-app client experience.
+TailorMate, Darzee, Atelierware, Geelus, RepairDesk (partially)
+Disconnected experience; clients cannot self-serve any information
+GAP-004
+No Capacity-Based Booking Engine: Tailors accept orders manually. There is no online booking system that checks workload, blocks intake at capacity, or creates a digital approval queue.
+All five platforms
+Overbooked tailors, delayed deliveries, no self-service booking for clients
+GAP-005
+Siloed POS + Stitching Workflow: Billing tools and production tools are separate. No platform auto-generates a digital stitching ticket from a POS invoice in a single click.
+RepairDesk is closest but not tailoring-native; others have basic invoicing only
+Double data entry; invoicing errors; missing garment-level production specs
+GAP-006
+No Staff Assignment at Garment Level: Tailors cannot assign specific suits/garments to specific stitching masters within the app. Workflow is managed verbally or on paper.
+All five platforms
+No accountability, no per-master productivity tracking, errors in mixed orders
+GAP-007
+No Real-Time In-App Chat: Communication happens on WhatsApp (Darzee sends invoice links; RepairDesk has a unified inbox for repair shops). No native real-time messaging exists.
+TailorMate, Darzee, Atelierware, Geelus
+Fragmented communications; fabric photo discussions happen outside any system
+GAP-008
+Anonymous Order Tracking: No platform allows a client to enter a simple ID into a public portal and see a live production checklist without creating an account.
+All five platforms
+Clients with no smartphone app or account cannot check status; creates support burden
+A.3 StitchFlow Comparative Advantage Matrix
+Feature / Capability
+TailorMate
+Darzee
+RepairDesk
+Atelierware
+StitchFlow
+Client-Owned Measurement Vault
+No
+No
+No
+No
+YES — client-controlled
+Client Mobile App / Portal
+No
+No
+Partial (status widget)
+No
+YES — full dual app
+Anonymous ID-Based Order Tracking
+No
+No
+Partial (website widget)
+No
+YES — no login required
+Online Booking with Capacity Gate
+No
+No
+Yes (repair-focused)
+No
+YES — tailoring-native
+Approval / Reject Queue for Tailors
+No
+No
+No
+No
+YES — with reason codes
+Granular Production Checklist (Client-Verified)
+No
+No
+No
+Partial (internal)
+YES — client-facing
+Staff Assignment per Garment
+No
+No
+Yes (technician)
+No
+YES — per-suit assignment
+Unified POS + Digital Stitching Ticket
+No
+No
+Partial
+No
+YES — one-click generate
+Native Real-Time In-App Chat
+No
+No
+No
+No
+YES — Firebase WebSocket
+Portfolio with Style Tags
+No
+Yes (basic URL)
+No
+No
+YES — tagged grid gallery
+Advance + Balance Payment Tracking
+Yes
+Yes
+Yes
+Yes
+YES + digital invoicing
+A.4 Strategic Positioning Statement
+Why StitchFlow Wins
+Every existing platform treats the tailoring relationship as a tailor-centric data problem. StitchFlow reframes it as a bilateral trust problem. The tailor needs an intelligent business OS; the client needs data ownership and transparent production visibility. No existing platform provides both simultaneously. StitchFlow is the first dual-actor platform in this market: a fully-featured Tailor Business App fused with a Client Transparency Portal, sharing one backend and one unified ID system. This is not a feature gap — it is a fundamental architectural difference.
+1. Introduction
+1.1 Purpose
+This document constitutes the authoritative Software Requirements Specification (SRS) and Software Design Description (SDD) for StitchFlow — a dual-facing cross-platform tailoring ecosystem. It is produced as a sprint-ready technical directive for the engineering team, covering all functional requirements, data architecture, API contracts, permission logic, and UI directives required to build, test, and deploy version 1.0.
+1.2 Scope
+StitchFlow solves three structurally-identified innovation problems simultaneously:
+The Black Box Problem: Replacing opaque status updates with a client-verified, granular production checklist at the garment-component level.
+The Measurement Portability Gap: Building a client-owned Measurement Vault that persists across tailors and is searchable by a unique ID.
+The Manual POS Trap: Unifying invoicing and production workflow into a single POS action that generates both a billing invoice and a digital stitching ticket.
+1.3 Definitions & Acronyms
+Term
+Definition
+Measurement Vault
+Client-owned, encrypted store of body measurements viewable by the client, writable only by assigned tailors
+Stitching Ticket
+A digital, garment-level production spec card auto-generated from a POS transaction
+Suite Slot
+A capacity-limited, bookable appointment unit for garment consultation
+Capacity Gate
+A server-side logic gate that blocks new bookings when a tailor's active workload ceiling is reached
+UID / Readable ID
+Human-readable unique ID (e.g. TR-Mardan-001) for search and identification
+Dual-Entry Gateway
+Landing screen offering separate onboarding paths for Tailors and Clients
+Staff Master
+An assigned stitching craftsperson responsible for a specific garment within an order
+RBAC
+Role-Based Access Control — permission enforcement at API and database layer
+RLS
+Row-Level Security — Supabase/PostgreSQL per-row access policy
+2. Core Innovation Specifications
+2.1 Innovation I — Solving the Black Box Problem
+2.1.1 Problem Statement
+In all existing platforms, order status is a single-field enum (Pending / Ready / Delivered). The client never knows whether 'stitching' means their suit jacket is being cut, the lining is being attached, or buttons are being stitched. This opacity generates repeated phone calls, erodes trust, and leaves tailors managing customer anxiety instead of garments.
+The Black Box in Numbers
+Per competitor review analysis: tailors in India receive an average of 3–5 status inquiry calls per active order per week. At 20 active orders, that is 60–100 unnecessary calls weekly — dead time that StitchFlow eliminates entirely.
+2.1.2 StitchFlow Solution — Granular Requirements Checklist
+StitchFlow replaces the single-field status with a three-layer transparency architecture:
+Order-Level Status: PENDING / CONFIRMED / IN_PRODUCTION / READY / DELIVERED — visible to both tailor and client.
+Garment-Level Stage: Per-garment production checklist with the following standard stages:
+Measurement Confirmed
+Fabric Cut
+Interlining / Padding Attached
+Main Body Stitched
+Collar / Lapel Attached
+Sleeves Set
+Pockets Sewn
+Lining Installed
+Buttons / Closures Attached
+Pressing & Finishing
+Quality Check Passed
+Requirement Verification: At order creation, a pre-production checklist is generated for the client to verify preferences before production begins (Neck type, Pocket style, Sleeve length, Lining colour, Collar style). This becomes part of the Stitching Ticket.
+Client Verification Flow
+Before the Tailor advances any order past CONFIRMED, the Client receives a 'Verify Requirements' prompt on their app. They confirm or request changes to: Neck Type, Pocket Style, Sleeve Treatment, Lining, Button Colour. Only on client confirmation does the system allow the Tailor to advance to IN_PRODUCTION. This single feature eliminates the most common cause of rework: miscommunicated preferences.
+2.2 Innovation II — Solving the Measurement Portability Gap
+2.2.1 Problem Statement
+In all existing platforms — TailorMate, Darzee, Atelierware, DarzeeBook — measurements are stored in the tailor's account, not the client's. If a client changes tailors, their measurement history disappears. The client has no proof of their own body data. This creates a dependency relationship that disincentivises client loyalty and makes data portability impossible.
+2.2.2 StitchFlow Solution — The Client-Owned Measurement Vault
+The Vault is the Client's permanent, cross-tailor measurement record. It persists even if the client works with zero active tailors.
+Any Tailor with an active or confirmed order can write to a Client's Vault. Multiple tailors may have contributed measurement records over time.
+The Client can view all measurement versions, all contributing tailors, and all timestamps — full audit trail.
+The Client may export their Vault as a PDF or share via a one-time link.
+Only the Client's assigned Primary Tailor (the tailor on the most recent confirmed order) may edit the current measurement record.
+Vault data is encrypted at rest (AES-256). The encryption key is derived from the Client's UID — not stored with the tailor.
+Anonymous ID Search — Vault Access Without Login
+A non-registered user can enter a Client Readable ID (e.g. CL-Lahore-042) on the StitchFlow public web portal and retrieve: the client's first name, their current active order status, and the production checklist. They CANNOT access raw measurement data without authentication. This enables family members, friends, or gift-givers to check delivery status without accounts.
+2.3 Innovation III — Solving the Manual POS Trap
+2.3.1 Problem Statement
+Tailors today use separate systems for billing (manual book or basic invoicing app) and production tracking (verbal or paper-based stitching slips). There is no platform that connects a financial transaction to a garment production workflow in a single action. RepairDesk comes closest for repair shops but is not tailoring-native — it has no concept of garment components, measurement fields, or stitching stages.
+2.3.2 StitchFlow Solution — Unified POS with Auto-Generated Stitching Ticket
+When a Tailor completes a booking confirmation and initiates the order in StitchFlow's Tailor POS, one button press generates two documents simultaneously:
+Digital Invoice: Itemised bill with garment type, base price, advance received, balance due, and estimated delivery date. Shareable via WhatsApp or in-app message.
+Digital Stitching Ticket: A production card containing client name, readable ID, measurements, garment-level requirements checklist, assigned Staff Master, delivery deadline, and a QR code that links to the live production status. Printable on thermal (58mm) or A4.
+One-Click Impact
+The POS → Stitching Ticket flow eliminates an estimated 8–12 minutes of manual data re-entry per order. For a tailor managing 30 orders per month, this saves 4–6 hours monthly and eliminates the most common source of measurement transcription errors.
+3. Functional Requirements — Master List
+3.1 Tailor POS & Business Application
+3.1.1 Onboarding & Profile
+FR-T-001: Tailors shall register via the Dual-Entry Gateway selecting 'Join as Tailor'. Required fields: Business Name, Phone (OTP-verified, E.164), Location (Google Maps Places API, stored as GeoPoint), Specialization Tags (multi-select: Suits, Shalwar Kameez, Sherwani, Bridal, Alterations, Ladies, Gents, Kids), and per-suit base pricing range.
+FR-T-002: Tailors shall receive a system-generated Readable ID in format TR-{City}-{Sequence} (e.g. TR-Mardan-001).
+FR-T-003: Tailor accounts require admin verification before the capacity gate and online booking become active. An 'Unverified' badge displays on profile.
+3.1.2 Unified POS & Billing
+FR-T-010: The POS module shall support: garment type selection, base price entry, advance payment capture (cash/bank transfer/mobile money), automatic balance calculation, and delivery date setting.
+FR-T-011: On POS confirmation, the system shall simultaneously generate a digital Invoice (PDF/WhatsApp-shareable) and a digital Stitching Ticket (printable QR-coded card).
+FR-T-012: The Stitching Ticket shall contain: Client Name, Client Readable ID, all measurement fields for the relevant garment type, the requirements checklist, assigned Staff Master, delivery date, and a QR code linking to the live order tracker.
+FR-T-013: The invoice shall display: Order ID, Garment type, Price, Advance paid, Balance due, Estimated delivery date, and Tailor's business address.
+FR-T-014: Payment tracking shall maintain three states per order: ADVANCE_RECEIVED, BALANCE_PENDING, FULLY_PAID.
+3.1.3 Staff Assignment
+FR-T-020: Tailors shall be able to add Staff Profiles (Name, Specialty, Phone) to their workspace.
+FR-T-021: Each garment within an order shall be assignable to a specific Staff Master. This assignment appears on the Stitching Ticket and in the staff's personal dashboard view.
+FR-T-022: A Staff Performance view shall display: total garments assigned, completed on-time, completed late, and average turnaround time per staff member.
+3.1.4 Capacity Management & Booking Approval
+FR-T-030: Tailors shall configure Max Active Orders (integer 1–99). The system enforces this ceiling via a serialised database transaction (no race conditions).
+FR-T-031: When current_active_orders >= max_active_orders, the online booking portal shall display 'Currently Full — Request Waitlist' and disable new booking submission.
+FR-T-032: Incoming online booking requests appear in the Booking Queue with PENDING status. Tailors may Approve or Reject each request.
+FR-T-033: Rejection requires a reason code: FULLY_BOOKED | SPECIALIZATION_MISMATCH | TIMELINE_UNAVAILABLE | CLIENT_REQUEST_UNCLEAR | OTHER. An optional free-text note is available.
+FR-T-034: On Approval, the system: (a) increments current_active_orders, (b) creates a tailor_client_link if one does not exist, (c) creates a Firebase Realtime Database chat channel, (d) sends FCM push and in-app notification to the Client.
+3.1.5 Portfolio Gallery
+FR-T-040: Tailors shall upload portfolio images (JPEG/PNG/HEIC, max 10MB) via a Cloudinary-signed upload flow. Images are auto-converted to WebP.
+FR-T-041: Each portfolio image shall support Style Tags (multi-select from predefined + custom: Formal, Casual, Bridal, Sherwani, Three-Piece, Two-Piece, Embroidered, Printed, etc.).
+FR-T-042: The portfolio gallery renders as a grid (3-column on mobile, 4-column on web) with style tag filter chips.
+FR-T-043: Maximum 50 images per tailor profile. Drag-to-reorder supported. Cover image selectable.
+3.2 Client Application & Portal
+3.2.1 Client Onboarding & Vault
+FR-C-001: Clients register via 'Join as Client' gateway. Required: Full Name, Phone (OTP-verified). Optional: Profile Photo.
+FR-C-002: A Client Readable ID is generated: CL-{City}-{Sequence} (e.g. CL-Karachi-042).
+FR-C-003: The Measurement Vault displays all measurement records linked to the client's ID — sorted by date, grouped by contributing tailor. Each record shows all fields, the recording tailor's name, and the timestamp.
+FR-C-004: Clients cannot edit any measurement field directly. An 'Update Request' button sends a message to their primary tailor.
+FR-C-005: Clients can export their full Vault as a PDF containing all historical measurement versions.
+3.2.2 Anonymous ID-Based Order Tracking
+FR-C-010: A public web portal (no login required) shall accept any Client Readable ID in a search bar and return: Client first name, current active order status, garment type, production checklist with completed stages highlighted, and expected delivery date.
+FR-C-011: Raw measurement data, full contact information, and financial details shall NOT be accessible without authentication.
+FR-C-012: The Client app's 'Track' tab shall display the same checklist with real-time Socket.io/Supabase Realtime updates — no pull-to-refresh required.
+3.2.3 Requirements Verification Checklist
+FR-C-020: Upon booking confirmation, the Client receives a 'Verify Your Requirements' prompt presenting garment-specific preference fields for their review and approval.
+FR-C-021: The Tailor's POS is locked from advancing to IN_PRODUCTION until the Client has submitted the requirements verification. A countdown timer (24 hours) auto-approves with default values if the client does not respond.
+FR-C-022: The verified requirements are frozen into the Stitching Ticket and are read-only post-approval.
+3.2.4 Booking Flow
+FR-C-030: Clients may initiate a Suite Slot booking from any verified Tailor's public profile. The booking form captures: Garment Type, Preferred Date Range, Special Instructions (max 500 chars), and up to 5 reference/fabric photos.
+FR-C-031: The booking form shall display the Tailor's current capacity indicator (e.g., '7 of 10 slots filled') and estimated queue position.
+FR-C-032: On submission, the client receives a booking confirmation notification and a 'PENDING — Awaiting Tailor Approval' status on their Orders screen.
+3.2.5 Communication
+FR-C-040: Verified phone numbers of assigned Tailors are visible to Clients with confirmed orders. On mobile, a 'Call' button triggers the native dialler via url_launcher (tel: URI). On web, the number is displayed with a copy button.
+FR-C-041: An in-app chat channel is created upon booking confirmation. Supports TEXT messages, IMAGE attachments (fabric/reference photos), and SYSTEM messages (auto-generated on stage transitions).
+FR-C-042: Chat messages are delivered via Firebase Realtime Database at sub-200ms latency. FCM push is dispatched when the recipient is backgrounded.
+FR-C-043: A 'Saved Tailors' list allows clients to bookmark preferred tailor profiles for quick re-booking.
+4. Non-Functional Requirements
+ID
+Category
+Requirement
+Target
+NFR-001
+Performance
+API p95 response time for all read operations
+< 300ms
+NFR-002
+Performance
+Real-time order status push latency (Socket.io / Supabase RT)
+< 1 second
+NFR-003
+Performance
+Firebase RTDB chat message delivery latency
+< 200ms
+NFR-004
+Scalability
+Registered users supported without architectural change
+50,000 users
+NFR-005
+Availability
+Core API uptime SLA
+99.9% (≈8.7 hrs/yr)
+NFR-006
+Security
+Measurement data encryption at rest
+AES-256 (Supabase Vault)
+NFR-007
+Security
+Data in transit
+TLS 1.3 mandatory
+NFR-008
+Security
+JWT access token expiry
+60 minutes
+NFR-009
+Security
+Refresh token validity
+30 days
+NFR-010
+Privacy
+Measurement access: client read / assigned tailor write only
+Enforced at API + RLS
+NFR-011
+Privacy
+Phone number visibility: only on confirmed booking relationship
+Enforced at API layer
+NFR-012
+Usability
+Onboarding completion time (both roles)
+< 3 minutes
+NFR-013
+Usability
+Anonymous ID search response time
+< 1.5 seconds
+NFR-014
+Localisation
+Language support v1.0
+English + Urdu (RTL)
+NFR-015
+Maintainability
+Backend unit test coverage
+≥ 80%
+NFR-016
+Storage
+Max portfolio images per tailor
+50 (auto WebP compressed)
+NFR-017
+Offline
+Client app: Vault + order history accessible offline
+Flutter Hive cache
+5. Unified Technical Architecture
+5.1 Stack Specification
+Layer
+Technology
+Version
+Rationale
+Frontend (Mobile)
+Flutter + Dart
+3.x LTS
+Single codebase iOS/Android/Web. Skia-rendered native performance. Strong Firebase SDK.
+Frontend (Web)
+Flutter Web
+3.x (same codebase)
+Client Search Portal + Tailor dashboard web access. Shared widget library.
+Backend API
+Node.js + TypeScript
+20 LTS + Fastify
+Type-safe, high-throughput async I/O. Fastify for schema validation and low overhead.
+ORM / Migrations
+Prisma
+5.x
+Type-safe DB client. Schema-as-code. Auto-generated TypeScript types from PostgreSQL schema.
+Primary Database
+PostgreSQL 15 via Supabase
+PostgreSQL 15
+Relational integrity for measurements, billing, orders. Supabase adds Auth, RLS, and Realtime.
+Real-Time Messaging
+Firebase Realtime Database
+Firebase 10.x
+Sub-200ms pub/sub for in-app chat. Offline queuing. Direct client writes with Security Rules.
+Real-Time Order Updates
+Socket.io + Supabase Realtime
+Socket.io 4.x
+Dual-layer: Socket.io for active clients, Supabase Realtime as persistent fallback.
+Authentication
+Firebase Auth + Supabase Auth
+Firebase Auth for mobile OAuth (Google/Apple). Supabase Auth for JWT + RLS integration.
+Media Storage
+Cloudinary
+Signed upload presets. Auto WebP conversion. CDN delivery. Transformation API.
+Push Notifications
+Firebase Cloud Messaging
+FCM v1
+Cross-platform push to iOS and Android via Cloud Functions trigger.
+Maps & Location
+Google Maps Platform
+Places API for address autocomplete. Maps SDK for Flutter location pin.
+Deployment
+Docker + Google Cloud Run
+Serverless containers. Auto-scale to zero. Zero-downtime rolling deploys.
+CI/CD
+GitHub Actions
+Test → Build → Deploy pipeline on main branch merge.
+5.2 Microservice Boundaries
+Auth Service: Registration, OTP verification, token issuance, role claim management, Readable ID generation.
+User Service: Profile CRUD (Tailor + Client), staff profile management, Saved Tailors list.
+Measurement Service: Vault write (Tailor-gated), versioned read, history, PDF export.
+Booking Service: Online booking intake, capacity gate transaction, approval/rejection queue.
+Order Service: Order lifecycle state machine, stage advancement, Stitching Ticket generation, invoice generation.
+Requirements Service: Requirements checklist generation, client verification capture, freeze-on-approval.
+Chat Service: Firebase RTDB message persistence, media attachment URLs, read receipt management.
+Notification Service: FCM push dispatch, in-app notification feed, notification preferences.
+Media Service: Cloudinary signed URL issuance, portfolio management, image deletion.
+Search Service: Anonymous ID lookup, tailor geo-search, specialization + capacity filtering.
+Staff Service: Staff profile CRUD, garment assignment, performance metrics.
+POS Service: Invoice generation (PDF), Stitching Ticket generation (PDF + QR), payment state tracking.
+6. Database Schema Blueprint
+6.1 Entity Relationship Overview
+The schema is designed around a Client-centric data model where the Client ID is the primary axis. The One-to-Many relationships are:
+1 Client → Many Orders (across multiple tailors over their lifetime)
+1 Client → Many Measurement Records (versioned, from multiple tailors)
+1 Tailor → Many Orders (their active workload)
+1 Order → 1 Stitching Ticket, 1 Invoice, 1 Chat Channel, Many Stage History Records
+1 Order → Many Garment Items (a single order can contain multiple garments)
+1 Garment Item → 1 Staff Master assignment, 1 Requirements Checklist, Many Stage Updates
+Primary Key Convention
+Users: Firebase Auth UID (28-char alphanumeric, system-generated)
+Readable IDs: TR-{City}-{ZeroPaddedSeq} / CL-{City}-{ZeroPaddedSeq} (human-searchable, unique)
+Orders: SF-O-{T4}-{C4}-{EpochMs}  |  Measurements: SF-M-{T4}-{C4}-{EpochMs}
+Stitching Tickets: SF-ST-{OrderId}  |  Invoices: SF-INV-{TailorShortId}-{YY}-{Seq}
+TABLE: users
+Column
+Type
+Constraints
+Description
+id
+uuid
+PK, DEFAULT gen_random_uuid()
+Firebase Auth UID — immutable system identifier
+readable_id
+varchar(24)
+UNIQUE, NOT NULL, indexed
+e.g. TR-Mardan-001 or CL-Karachi-042
+role
+enum(USER_ROLE)
+NOT NULL
+TAILOR | CLIENT | ADMIN | STAFF
+full_name
+varchar(100)
+NOT NULL
+Display name / business name
+phone
+varchar(20)
+UNIQUE, NOT NULL
+E.164 format, OTP-verified
+email
+varchar(255)
+UNIQUE, NOT NULL
+Auth provider email
+profile_photo_url
+text
+NULLABLE
+Cloudinary CDN URL
+location_address
+text
+NULLABLE
+Google Maps formatted address
+location_lat
+numeric(10,7)
+NULLABLE
+GeoPoint latitude
+location_lng
+numeric(10,7)
+NULLABLE
+GeoPoint longitude
+is_verified
+boolean
+DEFAULT false
+Admin-approved flag (critical for Tailors)
+account_status
+enum
+DEFAULT 'ACTIVE'
+ACTIVE | SUSPENDED | PENDING_VERIFICATION
+created_at
+timestamptz
+DEFAULT NOW()
+Account creation timestamp
+updated_at
+timestamptz
+DEFAULT NOW()
+Last update timestamp
+TABLE: tailor_profiles (1:1 with users WHERE role='TAILOR')
+Column
+Type
+Constraints
+Description
+tailor_id
+uuid
+PK, FK → users.id
+One-to-one reference
+business_name
+varchar(100)
+NOT NULL
+Public-facing business name
+specializations
+text[]
+DEFAULT '{}'
+Tagged array: Suits, Sherwani, etc.
+availability_status
+enum
+DEFAULT 'ACTIVE'
+ACTIVE | ON_LEAVE | FULLY_BOOKED
+max_active_orders
+smallint
+DEFAULT 10, CHECK 1–99
+Tailor-set workload ceiling
+current_active_orders
+smallint
+DEFAULT 0
+Maintained by DB trigger
+price_per_suit_min
+numeric(10,2)
+NULLABLE
+PKR minimum price
+price_per_suit_max
+numeric(10,2)
+NULLABLE
+PKR maximum price
+price_per_garment_min
+numeric(10,2)
+NULLABLE
+For non-suit garments
+price_per_garment_max
+numeric(10,2)
+NULLABLE
+For non-suit garments
+portfolio_urls
+text[]
+DEFAULT '{}'
+Ordered Cloudinary URLs, max 50
+portfolio_cover_idx
+smallint
+DEFAULT 0
+Index of cover image in portfolio_urls
+total_completed_orders
+integer
+DEFAULT 0
+Lifetime fulfilled order count
+TABLE: measurements (versioned, append-only)
+Column
+Type
+Constraints
+Description
+id
+varchar(48)
+PK
+SF-M-{T4}-{C4}-{EpochMs}
+client_id
+uuid
+FK → users.id, NOT NULL
+Owner client
+tailor_id
+uuid
+FK → users.id, NOT NULL
+Authoring tailor (write-locked)
+version
+smallint
+NOT NULL, DEFAULT 1
+Auto-increments per client-tailor pair
+parent_id
+varchar(48)
+FK → measurements.id, NULL
+Reference to previous version
+is_current
+boolean
+NOT NULL, DEFAULT true
+Toggled by DB trigger on new write
+neck
+numeric(5,1)
+NULLABLE
+cm
+chest
+numeric(5,1)
+NULLABLE
+cm
+waist
+numeric(5,1)
+NULLABLE
+cm
+hips
+numeric(5,1)
+NULLABLE
+cm
+shoulder_width
+numeric(5,1)
+NULLABLE
+cm
+sleeve_length
+numeric(5,1)
+NULLABLE
+cm
+inseam
+numeric(5,1)
+NULLABLE
+cm
+thigh
+numeric(5,1)
+NULLABLE
+cm
+shirt_length
+numeric(5,1)
+NULLABLE
+cm
+pant_length
+numeric(5,1)
+NULLABLE
+cm
+custom_notes
+varchar(500)
+NULLABLE
+Tailor annotations
+recorded_at
+timestamptz
+DEFAULT NOW()
+Creation timestamp
+TABLE: orders
+Column
+Type
+Constraints
+Description
+id
+varchar(48)
+PK
+SF-O-{T4}-{C4}-{EpochMs}
+tailor_id
+uuid
+FK → users.id, NOT NULL
+Assigned tailor
+client_id
+uuid
+FK → users.id, NOT NULL
+Ordering client
+booking_status
+enum
+NOT NULL, DEFAULT 'PENDING'
+PENDING|CONFIRMED|REJECTED|CANCELLED|COMPLETED
+requirements_verified
+boolean
+DEFAULT false
+Set true on client verification submission
+requirements_verified_at
+timestamptz
+NULLABLE
+Timestamp of client verification
+chat_channel_id
+varchar(64)
+NULLABLE
+Firebase RTDB path reference
+invoice_id
+varchar(48)
+NULLABLE
+FK → invoices.id (auto-linked on POS)
+stitching_ticket_id
+varchar(48)
+NULLABLE
+FK → stitching_tickets.id
+preferred_date_start
+date
+NULLABLE
+Client preferred earliest ready date
+preferred_date_end
+date
+NULLABLE
+Client preferred latest ready date
+special_instructions
+text
+NULLABLE, max 500 chars
+Client order notes
+reference_image_urls
+text[]
+DEFAULT '{}'
+Client-uploaded fabric photos (max 5)
+rejection_reason
+varchar(50)
+NULLABLE
+Reason code on REJECTED status
+rejection_notes
+text
+NULLABLE
+Optional tailor free-text
+created_at
+timestamptz
+DEFAULT NOW()
+Booking request timestamp
+confirmed_at
+timestamptz
+NULLABLE
+Approval timestamp
+completed_at
+timestamptz
+NULLABLE
+Completion timestamp
+TABLE: order_garments (one order → many garments)
+Column
+Type
+Description
+id
+uuid
+PK — individual garment within an order
+order_id
+varchar(48)
+FK → orders.id
+garment_type
+varchar(50)
+Suit Jacket, Suit Trouser, Sherwani, Shalwar Kameez, etc.
+staff_master_id
+uuid
+FK → staff_profiles.id — assigned stitching master
+delivery_stage
+enum
+MEASUREMENT_CONFIRMED|FABRIC_CUT|BODY_STITCHED|COLLAR_SET|SLEEVES_SET|POCKETS_SEWN|LINING_INSTALLED|BUTTONS_ATTACHED|PRESSING|QC_PASSED|READY
+stage_history
+jsonb[]
+Append-only: [{stage, advanced_at, advanced_by}]
+requirements
+jsonb
+Frozen requirements checklist from client verification
+measurement_id
+varchar(48)
+FK → measurements.id — linked measurement record
+TABLE: invoices
+Column
+Type
+Description
+id
+varchar(48)
+PK — SF-INV-{TailorShort}-{YY}-{Seq}
+order_id
+varchar(48)
+FK → orders.id
+tailor_id
+uuid
+FK → users.id
+client_id
+uuid
+FK → users.id
+base_price
+numeric(10,2)
+Total garment price
+advance_paid
+numeric(10,2)
+Advance payment received
+balance_due
+numeric(10,2)
+Computed: base_price - advance_paid
+payment_status
+enum
+ADVANCE_RECEIVED | BALANCE_PENDING | FULLY_PAID
+pdf_url
+text
+Cloudinary URL to generated invoice PDF
+created_at
+timestamptz
+Invoice creation timestamp
+TABLE: staff_profiles
+Column
+Type
+Description
+id
+uuid
+PK
+tailor_id
+uuid
+FK → users.id — owning tailor business
+name
+varchar(100)
+Staff member display name
+specialty
+varchar(50)
+Cutting | Stitching | Finishing | Embroidery | All
+phone
+varchar(20)
+Internal contact number
+is_active
+boolean
+Active/inactive toggle
+total_assigned
+integer
+Lifetime garments assigned
+total_completed_on_time
+integer
+On-time delivery count
+TABLE: tailor_client_links (governs access control)
+Column
+Type
+Description
+id
+varchar(32)
+PK — SF-L-{T4}-{C4} — deterministic, deduplicated
+tailor_id
+uuid
+FK → users.id
+client_id
+uuid
+FK → users.id
+linked_at
+timestamptz
+First confirmed booking date
+order_count
+integer
+Total confirmed orders between this pair
+is_active
+boolean
+True while at least one active order exists
+Firebase Realtime Database: Chat Messages
+Node Path: /chats/{chatChannelId}/messages/{pushId}
+{
+  sender_id: string,           // Firebase Auth UID
+  sender_role: 'TAILOR' | 'CLIENT' | 'SYSTEM',
+  type: 'TEXT' | 'IMAGE' | 'SYSTEM',
+  content: string,              // Text or system event string
+  media_url?: string,           // Cloudinary CDN URL for IMAGE type
+  sent_at: number,              // Firebase ServerValue.TIMESTAMP
+  is_read: boolean              // Updated by recipient on open
+}
+7. Data Flow & Permission Logic
+7.1 One-to-Many: Client ID and Orders
+The Client Readable ID (CL-{City}-{Seq}) serves as the universal lookup key across the entire platform:
+One Client ID → Many Orders: A single client may have orders with multiple tailors simultaneously or sequentially. There is no restriction on order count per client.
+One Client ID → Many Measurements: Measurements from multiple tailors are all linked to the same Client ID, forming the Vault's historical record.
+One Client ID → One Anonymous Search Result: The public portal always returns the most recent active order for a given Client ID.
+Relationship
+Cardinality
+Governing Table
+Access Rule
+Client → Orders
+1:Many
+orders.client_id
+Client reads own orders only
+Client → Measurements
+1:Many
+measurements.client_id
+Client reads all; only assigned tailor writes
+Tailor → Orders
+1:Many
+orders.tailor_id
+Tailor reads/writes own orders only
+Order → Garments
+1:Many
+order_garments.order_id
+Tailor writes; Client reads
+Order → Invoice
+1:1
+invoices.order_id
+Tailor generates; Client reads
+Order → Chat Channel
+1:1
+orders.chat_channel_id
+Firebase Rules: participant UIDs only
+Tailor → Staff
+1:Many
+staff_profiles.tailor_id
+Tailor manages own staff only
+Staff → Garments
+1:Many
+order_garments.staff_master_id
+Staff reads own assignments only
+7.2 Permission Logic — Complete Matrix
+Operation
+Client
+Tailor (Own Orders)
+Tailor (Others)
+Admin
+Staff
+Read own measurements
+YES
+YES (via link)
+NO
+YES
+NO
+Write measurements
+NO
+YES (if link exists)
+NO
+NO
+NO
+View own orders
+YES
+YES
+NO
+YES
+Own only
+Advance production stage
+NO
+YES
+NO
+NO
+NO
+View client phone number
+NO
+YES (own clients)
+NO
+YES
+NO
+View tailor phone number
+YES (if confirmed)
+YES
+YES (public)
+YES
+NO
+Create booking
+YES
+NO
+NO
+NO
+NO
+Approve/reject booking
+NO
+YES
+NO
+YES
+NO
+Access Measurement Vault
+YES (read own)
+YES (write own clients)
+NO
+YES
+NO
+Generate invoice
+NO
+YES
+NO
+NO
+NO
+View portfolio
+YES
+YES
+YES
+YES
+NO
+Manage staff profiles
+NO
+YES
+NO
+NO
+NO
+Delete own account data
+YES
+YES
+—
+YES
+NO
+7.3 Measurement Write Access — Triple Gate
+Security Gate Implementation
+Gate 1 — JWT Role Check (API Middleware): Request must carry JWT with role='TAILOR'. HTTP 403 if role mismatch.
+
+Gate 2 — Link Existence Check (API Service Layer): SELECT 1 FROM tailor_client_links WHERE tailor_id = $uid AND client_id = $targetClientId AND is_active = true. HTTP 403 with code LINK_NOT_FOUND if absent.
+
+Gate 3 — Supabase RLS Policy (Database Layer): CREATE POLICY measurement_write ON measurements FOR INSERT WITH CHECK (tailor_id = auth.uid() AND EXISTS (SELECT 1 FROM tailor_client_links WHERE tailor_id = auth.uid() AND client_id = measurements.client_id AND is_active = true));
+
+All three gates must pass. A compromised API layer cannot bypass the RLS policy at the database level.
+7.4 Capacity Gate — Concurrency-Safe Implementation
+Serialised Transaction Logic (Node.js Booking Service)
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+  SELECT current_active_orders, max_active_orders, availability_status
+  FROM tailor_profiles WHERE tailor_id = $tailorId FOR UPDATE;  -- row lock
+  IF current_active_orders >= max_active_orders:
+    ROLLBACK;
+    THROW CapacityExceededException { code: 'CAPACITY_EXCEEDED', http: 409 };
+  IF availability_status != 'ACTIVE':
+    ROLLBACK;
+    THROW UnavailableException { code: 'TAILOR_UNAVAILABLE', http: 409 };
+  INSERT INTO orders (...) VALUES (...) RETURNING id;
+COMMIT;
+
+The FOR UPDATE lock prevents race conditions when two clients submit simultaneously. The serialised isolation level handles edge cases under high concurrency.
+8. Core API Endpoint Reference
+8.1 Authentication
+Method
+Endpoint
+Auth
+Description
+POST
+/api/v1/auth/register
+Public
+Register + generate Readable ID; set role claim in JWT
+POST
+/api/v1/auth/login
+Public
+Login; return access JWT (60min) + refresh token (30d)
+POST
+/api/v1/auth/refresh
+Refresh Token
+Rotate access token
+POST
+/api/v1/auth/verify-otp
+Public
+Phone OTP verification
+DELETE
+/api/v1/auth/logout
+JWT
+Invalidate refresh token session
+8.2 Search & Public Portal
+Method
+Endpoint
+Auth
+Description
+GET
+/api/v1/search/track/:readableId
+Public
+Anonymous order status by Client Readable ID
+GET
+/api/v1/search/tailors
+JWT
+Geo-search tailors by city, spec, availability, price range
+GET
+/api/v1/tailors/:tailorId
+Public
+Tailor public profile + portfolio (no measurements)
+8.3 Measurements & Vault
+Method
+Endpoint
+Auth
+Description
+POST
+/api/v1/measurements
+JWT (Tailor)
+Create versioned measurement — triple-gated
+GET
+/api/v1/measurements/vault/:clientId
+JWT
+Current measurement + version history
+GET
+/api/v1/measurements/vault/:clientId/export
+JWT (Client own)
+Generate Vault PDF export via Cloudinary
+8.4 Bookings & Orders
+Method
+Endpoint
+Auth
+Description
+POST
+/api/v1/orders
+JWT (Client)
+Create booking — runs capacity gate transaction
+GET
+/api/v1/orders/tailor/queue
+JWT (Tailor)
+Pending approval queue, sorted by request date
+GET
+/api/v1/orders/client/mine
+JWT (Client)
+Client's full order history
+GET
+/api/v1/orders/:orderId
+JWT
+Order detail (role-filtered response)
+PATCH
+/api/v1/orders/:orderId/approve
+JWT (Tailor)
+Approve → create link + chat channel + ticket stub
+PATCH
+/api/v1/orders/:orderId/reject
+JWT (Tailor)
+Reject with reason code + optional notes
+PATCH
+/api/v1/orders/:orderId/cancel
+JWT
+Cancel (role-validated, pre-production only)
+8.5 Requirements Checklist
+Method
+Endpoint
+Auth
+Description
+GET
+/api/v1/orders/:orderId/requirements
+JWT
+Get requirements checklist for verification
+POST
+/api/v1/orders/:orderId/requirements/verify
+JWT (Client)
+Submit verified requirements — unlocks IN_PRODUCTION
+8.6 Production & POS
+Method
+Endpoint
+Auth
+Description
+PATCH
+/api/v1/garments/:garmentId/stage
+JWT (Tailor)
+Advance garment production stage — append-only
+POST
+/api/v1/orders/:orderId/pos
+JWT (Tailor)
+Unified POS action: generate invoice + stitching ticket
+GET
+/api/v1/invoices/:invoiceId/pdf
+JWT
+Download invoice PDF
+GET
+/api/v1/tickets/:ticketId/pdf
+JWT (Tailor)
+Download stitching ticket PDF + QR
+8.7 Staff & Portfolio
+Method
+Endpoint
+Auth
+Description
+POST
+/api/v1/staff
+JWT (Tailor)
+Add staff profile to workspace
+GET
+/api/v1/staff
+JWT (Tailor)
+List all staff with performance metrics
+PATCH
+/api/v1/garments/:garmentId/assign
+JWT (Tailor)
+Assign staff master to garment
+POST
+/api/v1/media/sign
+JWT (Tailor)
+Cloudinary signed upload preset (60s TTL)
+DELETE
+/api/v1/media/:publicId
+JWT (Tailor)
+Remove portfolio image
+9. UI/UX Directives
+9.1 Tailor View — Active Workload Dashboard
+The Tailor's primary screen is a command centre focused on workload awareness and action queues, not reports or analytics.
+Widget
+Position
+Data Source
+Priority
+Capacity Gauge
+Hero card, top of screen
+current_active / max_active_orders
+P0 — always visible
+Booking Queue Badge
+Nav bar icon + screen tab
+Pending booking count
+P0 — unread count badge
+Active Orders List
+Main scroll area
+Orders WHERE status IN ('CONFIRMED','IN_PRODUCTION')
+P0
+Stage Progress per Order
+Inline in order card
+order_garments.delivery_stage
+P0
+Awaiting Requirements
+Alert banner
+orders WHERE requirements_verified = false
+P1
+Overdue Orders
+Red-flagged section
+Orders past preferred_date_end
+P1
+Balance Due Count
+Secondary stat card
+invoices WHERE payment_status = 'BALANCE_PENDING'
+P1
+Staff Workload Grid
+Collapsible section
+staff_profiles with assignment counts
+P2
+9.2 Client View — Search & Track Interface
+The Client's primary UX is built around the single most powerful action: finding out where their suit is.
+Screen
+Primary Element
+Behaviour
+Notes
+Track (Home Tab)
+Large ID search bar
+Auto-debounced query at 3+ chars; results in < 1.5s
+Also accessible without login on Flutter Web portal
+Track Result
+Live Production Checklist
+StreamBuilder on Supabase RT; no refresh needed
+Stages are checkboxes; completed = green; current = pulsing amber
+Measurement Vault
+Read-only field list grouped by tailor
+Version history expandable per tailor
+Export PDF button at bottom
+Requirements Verify
+Checklist form
+Appears as fullscreen modal post-booking confirmation
+24hr auto-approval countdown displayed
+Orders History
+Ordered by recency
+Status chips, tap to expand to full checklist
+PENDING shown with 'Awaiting Approval' animation
+Discover Tailors
+Map + filter list
+Geo-search by city; filter: specialization, availability, price
+Portfolio grid preview on tailor card tap
+Chat
+WhatsApp-style thread
+StreamBuilder on Firebase RTDB channel
+Image picker for fabric photos; system messages in grey
+Profile
+Readable ID display (prominent)
+QR code of ID, shareable
+'Export Vault' and 'Update Request' CTAs
+10. Sprint-Ready Release Roadmap
+Phase
+Features
+Sprint Estimate
+Priority
+v1.0 — Core
+Dual-Entry Gateway, Tailor POS + Invoice + Stitching Ticket, Measurement Vault, Booking with Capacity Gate, Client App with ID Search, Production Checklist (Tailor-side advance), Basic Chat
+6 Sprints (12 weeks)
+All P0 features
+v1.1 — Client Transparency
+Client Requirements Verification Checklist, Real-Time Checklist (Supabase RT), Vault PDF Export, Anonymous Web Portal for ID Search
+2 Sprints (4 weeks)
+P1 transparency features
+v1.2 — Staff & Operations
+Staff Profiles + Garment Assignment, Staff Performance Dashboard, Portfolio Style Tags, Urdu RTL localisation
+2 Sprints (4 weeks)
+P1 operations features
+v1.3 — Trust & Quality
+Admin Moderation Panel, Tailor Verification Flow, Report Abuse, Booking Waitlist
+2 Sprints (4 weeks)
+P2 platform maturity
+v2.0 — Monetization
+In-App Payments (Easypaisa/JazzCash/Stripe), Deposit Collection, Payment Reminders, Digital Receipts
+3 Sprints (6 weeks)
+P2 revenue features
+v2.1 — Growth
+Ratings & Reviews (post-order), AI-Assisted Style Tag Suggestions from portfolio images, Advanced Analytics Dashboard
+3 Sprints (6 weeks)
+P3 growth features
+Open Issues Requiring Resolution Before Sprint 1
+1. Multi-Garment Requirements: Define how requirements verification works when an order contains 3 garments — one form per garment or one combined form?
+
+2. Measurement Conflict Resolution: If two tailors record conflicting measurements for the same client, who does the Vault show as 'current'? Proposed: most recent by timestamp, client can flag a dispute.
+
+3. Staff App Access Level: Do Staff Masters get their own login to view garment assignments? Or is it a sub-view within the Tailor app? Propose: lightweight Staff sub-role with limited JWT scope.
+
+4. Data Residency: Confirm GCP region for Pakistan-specific data residency compliance before infrastructure provisioning.
+
+5. Invoice Numbering Reset: Does the invoice sequence reset annually per tailor (SF-INV-T8A3-25-001) or run continuously? Propose: annual reset with year prefix for accounting clarity.
+Document Control
+Document Owner: Principal Systems Architect & Product Lead
+Version: 1.0 — Sprint-Ready
+Review Cycle: Before each sprint kickoff for items within scope
+Change Management: All amendments require written change request, version increment, and dual sign-off (Product Lead + Tech Lead)
+
+This document is the authoritative technical source of truth for StitchFlow v1.0 through v1.3. Any implementation deviation must be captured as a formal amendment.

@@ -1,0 +1,86 @@
+# ── Flutter / Dart ───────────────────────────────────────────────────────────
+frontend/.dart_tool/
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/pubspec.lock
+
+# ── Android ──────────────────────────────────────────────────────────────────
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/app/debug/
+frontend/android/app/release/
+frontend/android/app/profile/
+frontend/android/key.properties
+*.apk
+*.aab
+
+# ── iOS ───────────────────────────────────────────────────────────────────────
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/ios/Flutter/Flutter.framework
+frontend/ios/Flutter/Flutter.podspec
+frontend/ios/Runner.xcworkspace/xcshareddata/
+frontend/ios/Runner/GeneratedPluginRegistrant.*
+frontend/ios/Runner/GoogleService-Info.plist
+
+# ── Node / Backend ───────────────────────────────────────────────────────────
+backend/node_modules/
+backend/dist/
+backend/.env
+node_modules/
+
+# ── Prisma ───────────────────────────────────────────────────────────────────
+backend/prisma/.env
+
+# ── VS Code / IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+frontend/.idea/
+frontend/*.iml
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# ── Large / Unnecessary Files ─────────────────────
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Media (if not required)
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Images (optional - only if heavy assets exist)
+*.psd
+
+# Misc
+*.tmp
+*.cache

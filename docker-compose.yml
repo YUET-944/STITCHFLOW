@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────
+#  StitchFlow — Local Development Environment
+#  Usage:
+#   docker compose up -d        → Start PostgreSQL + pgAdmin
+#   docker compose down         → Stop all services
+#   docker compose down -v      → Stop and delete all data
+# ─────────────────────────────────────────────────────────────────
+
+
+services:
+  # ── PostgreSQL 15 ────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: stitchflow_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       stitchflow
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: stitchflow_dev_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d stitchflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── pgAdmin (Web UI for PostgreSQL) ──────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: stitchflow_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@stitchflow.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_LISTEN_PORT:      8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# ─────────────────────────────────────────────────────────────────
+# Setup Guide:
+#
+# 1. Install Docker Desktop: https://www.docker.com/products/docker-desktop
+# 2. cp backend/.env.example backend/.env
+# 3. Update backend/.env with local DB URL:
+#    DATABASE_URL="postgresql://postgres:stitchflow_dev_pass@localhost:5432/stitchflow"
+#    DIRECT_URL="postgresql://postgres:stitchflow_dev_pass@localhost:5432/stitchflow"
+# 4. docker compose up -d
+# 5. cd backend && npm run db:generate && npm run db:migrate:dev
+# 6. npm run dev
+# ─────────────────────────────────────────────────────────────────

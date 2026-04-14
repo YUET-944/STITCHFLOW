@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  TAILOR
+  CLIENT
+  ADMIN
+  STAFF
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum AvailabilityStatus {
+  ACTIVE
+  ON_LEAVE
+  FULLY_BOOKED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum GarmentStage {
+  MEASUREMENT_CONFIRMED
+  FABRIC_CUT
+  INTERLINING_ATTACHED
+  BODY_STITCHED
+  COLLAR_LAPEL_ATTACHED
+  SLEEVES_SET
+  POCKETS_SEWN
+  LINING_INSTALLED
+  BUTTONS_CLOSURES_ATTACHED
+  PRESSING_FINISHING
+  QC_PASSED
+  READY
+}
+
+enum PaymentStatus {
+  ADVANCE_RECEIVED
+  BALANCE_PENDING
+  FULLY_PAID
+}
+
+model User {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  readable_id       String         @unique @db.VarChar(24) // TR-Mardan-001 or CL-Karachi-042
+  role              Role           
+  full_name         String         @db.VarChar(100)
+  username          String         @unique @db.VarChar(50)
+  password_hash     String         @db.Text
+  email             String?        @unique @db.VarChar(255)
+  profile_photo_url String?        @db.Text
+  location_address  String?        @db.Text
+  location_city     String?        @db.VarChar(100)
+  location_lat      Decimal?       @db.Decimal(10, 7)
+  location_lng      Decimal?       @db.Decimal(10, 7)
+  is_verified       Boolean        @default(false)
+  account_status    AccountStatus  @default(ACTIVE)
+  created_at        DateTime       @default(now()) @db.Timestamptz
+  updated_at        DateTime       @default(now()) @db.Timestamptz
+
+  tailor_profile    TailorProfile?
+  
+  client_orders     Order[]        @relation("ClientOrders")
+  tailor_orders     Order[]        @relation("TailorOrders")
+
+  client_measurements Measurement[] @relation("ClientMeasurements")
+  tailor_measurements Measurement[] @relation("TailorMeasurements")
+
+  client_invoices   Invoice[]       @relation("ClientInvoices")
+  tailor_invoices   Invoice[]       @relation("TailorInvoices")
+
+  tailor_links      TailorClientLink[] @relation("TailoredLinks")
+  client_links      TailorClientLink[] @relation("ClientLinks")
+  
+  staff_profiles    StaffProfile[]   @relation("TailorStaff")
+
+  @@map("users")
+}
+
+model TailorProfile {
+  tailor_id               String             @id @db.Uuid
+  business_name           String             @db.VarChar(100)
+  specializations         String[]           @default([]) // Array text
+  availability_status     AvailabilityStatus @default(ACTIVE)
+  max_active_orders       Int                @default(10) @db.SmallInt
+  current_active_orders   Int                @default(0) @db.SmallInt
+  price_per_suit_min      Decimal?           @db.Decimal(10, 2)
+  price_per_suit_max      Decimal?           @db.Decimal(10, 2)
+  price_per_garment_min   Decimal?           @db.Decimal(10, 2)
+  price_per_garment_max   Decimal?           @db.Decimal(10, 2)
+  portfolio_urls          String[]           @default([])
+  portfolio_cover_idx     Int                @default(0) @db.SmallInt
+  total_completed_orders  Int                @default(0)
+  
+  user                    User               @relation(fields: [tailor_id], references: [id], onDelete: Cascade)
+  
+  @@map("tailor_profiles")
+}
+
+model Measurement {
+  id              String         @id @db.VarChar(48) // SF-M-{T4}-{C4}-{EpochMs}
+  client_id       String         @db.Uuid
+  tailor_id       String         @db.Uuid
+  version         Int            @default(1) @db.SmallInt
+  parent_id       String?        @db.VarChar(48)
+  is_current      Boolean        @default(true)
+  
+  neck            Decimal?       @db.Decimal(5, 1)
+  chest           Decimal?       @db.Decimal(5, 1)
+  waist           Decimal?       @db.Decimal(5, 1)
+  hips            Decimal?       @db.Decimal(5, 1)
+  shoulder_width  Decimal?       @db.Decimal(5, 1)
+  sleeve_length   Decimal?       @db.Decimal(5, 1)
+  inseam          Decimal?       @db.Decimal(5, 1)
+  thigh           Decimal?       @db.Decimal(5, 1)
+  shirt_length    Decimal?       @db.Decimal(5, 1)
+  pant_length     Decimal?       @db.Decimal(5, 1)
+  custom_notes    String?        @db.VarChar(500)
+  
+  recorded_at     DateTime       @default(now()) @db.Timestamptz
+
+  client          User           @relation("ClientMeasurements", fields: [client_id], references: [id])
+  tailor          User           @relation("TailorMeasurements", fields: [tailor_id], references: [id])
+  parent          Measurement?   @relation("MeasurementHistory", fields: [parent_id], references: [id])
+  children        Measurement[]  @relation("MeasurementHistory")
+  order_garments  OrderGarment[]
+
+  @@map("measurements")
+}
+
+model Order {
+  id                       String         @id @db.VarChar(48) // SF-O-{T4}-{C4}-{EpochMs}
+  tailor_id                String         @db.Uuid
+  client_id                String         @db.Uuid
+  booking_status           BookingStatus  @default(PENDING)
+  requirements_verified    Boolean        @default(false)
+  requirements_verified_at DateTime?      @db.Timestamptz
+  chat_channel_id          String?        @db.VarChar(64)
+  invoice_id               String?        @unique @db.VarChar(48)
+  stitching_ticket_id      String?        @unique @db.VarChar(48)
+  preferred_date_start     DateTime?      @db.Date
+  preferred_date_end       DateTime?      @db.Date
+  special_instructions     String?        @db.Text
+  reference_image_urls     String[]       @default([])
+  rejection_reason         String?        @db.VarChar(50)
+  rejection_notes          String?        @db.Text
+  created_at               DateTime       @default(now()) @db.Timestamptz
+  confirmed_at             DateTime?      @db.Timestamptz
+  completed_at             DateTime?      @db.Timestamptz
+
+  tailor                   User           @relation("TailorOrders", fields: [tailor_id], references: [id])
+  client                   User           @relation("ClientOrders", fields: [client_id], references: [id])
+  invoice                  Invoice?       @relation(fields: [invoice_id], references: [id])
+  
+  garments                 OrderGarment[]
+
+  @@map("orders")
+}
+
+model OrderGarment {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        String         @db.VarChar(48)
+  garment_type    String         @db.VarChar(50)
+  staff_master_id String?        @db.Uuid
+  delivery_stage  GarmentStage   @default(MEASUREMENT_CONFIRMED)
+  stage_history   Json[]         // jsonb[] -> array of json objects
+  requirements    Json?          // frozen requirements
+  measurement_id  String?        @db.VarChar(48)
+
+  order           Order          @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  staff_master    StaffProfile?  @relation(fields: [staff_master_id], references: [id], onDelete: SetNull)
+  measurement     Measurement?   @relation(fields: [measurement_id], references: [id])
+
+  @@map("order_garments")
+}
+
+model Invoice {
+  id             String        @id @db.VarChar(48) // SF-INV-XX-YY-Seq
+  order_id       String        @unique @db.VarChar(48)  // Ensure strictly 1:1 if needed
+  tailor_id      String        @db.Uuid
+  client_id      String        @db.Uuid
+  base_price     Decimal       @db.Decimal(10, 2)
+  advance_paid   Decimal       @db.Decimal(10, 2)
+  balance_due    Decimal       @db.Decimal(10, 2)
+  payment_status PaymentStatus @default(BALANCE_PENDING)
+  pdf_url        String?       @db.Text
+  created_at     DateTime      @default(now()) @db.Timestamptz
+
+  tailor         User          @relation("TailorInvoices", fields: [tailor_id], references: [id])
+  client         User          @relation("ClientInvoices", fields: [client_id], references: [id])
+  
+  Order          Order?
+
+  @@map("invoices")
+}
+
+model StaffProfile {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tailor_id               String   @db.Uuid
+  name                    String   @db.VarChar(100)
+  specialty               String   @db.VarChar(50)
+  phone                   String   @db.VarChar(20)
+  is_active               Boolean  @default(true)
+  total_assigned          Int      @default(0)
+  total_completed_on_time Int      @default(0)
+
+  tailor                  User     @relation("TailorStaff", fields: [tailor_id], references: [id], onDelete: Cascade)
+  assignments             OrderGarment[]
+
+  @@map("staff_profiles")
+}
+
+model TailorClientLink {
+  id         String   @id @db.VarChar(32) // SF-L-{T4}-{C4}
+  tailor_id  String   @db.Uuid
+  client_id  String   @db.Uuid
+  is_active  Boolean  @default(true)
+  linked_at  DateTime @default(now()) @db.Timestamptz
+  order_count Int     @default(1)
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  tailor     User     @relation("TailoredLinks", fields: [tailor_id], references: [id], onDelete: Cascade)
+  client     User     @relation("ClientLinks", fields: [client_id], references: [id], onDelete: Cascade)
+
+  @@unique([tailor_id, client_id])
+  @@map("tailor_client_links")
+}
+
+model Sequence {
+  id         String @id // e.g. TR_MARDAN or TR_KARACHI (role + city — guaranteed unique)
+  prefix     String @db.VarChar(10) // e.g. TR or CL (NOT unique — same prefix for multiple cities)
+  last_value Int    @default(0)
+
+  @@map("sequences")
+}

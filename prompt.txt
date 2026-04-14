@@ -1,0 +1,556 @@
+STITCHFLOW
+DEVELOPER MASTER-PROMPT v1.0
+TECHNICAL EXECUTIVE ORDER FOR THE ANTI-GRAVITY ENGINE
+Classification: Confidential — Sprint-Ready Internal Document
+Authority: Principal Full-Stack Architect
+Source SRS/SDD: StitchFlow Master Solution v1.0 (IEEE 830 / IEEE 1016 Compliant)
+Build Target: Anti-Gravity Engine — Cross-Platform Dual-Actor Tailoring Ecosystem
+EXECUTIVE DIRECTIVE
+This document constitutes a binding Technical Executive Order for the Anti-Gravity development engine. You are directed to build StitchFlow v1.0 — a dual-facing, cross-platform tailoring ecosystem that simultaneously solves three structurally-identified market failures: the Black Box Production Problem, the Measurement Portability Gap, and the Manual POS Trap. All implementations described herein are mandatory. Deviations require formal written amendment with Principal Architect sign-off.
+SECTION 1 — TECHNICAL STACK & ENVIRONMENT
+1.1  Frontend — Flutter 3.x (Cross-Platform, Single Codebase)
+Mandate: One Flutter codebase targets iOS, Android, and Web with zero platform forks.
+Framework: Flutter 3.x — Dart 3.x null-safe
+State Management: Riverpod 2.x (ProviderScope at root; AsyncNotifierProvider for server state)
+Navigation: go_router — declarative, deep-link ready for QR-code order tracking URLs
+Real-time Client (Chat): firebase_database — StreamBuilder pattern on Firebase RTDB nodes
+Real-time Client (Orders): socket_io_client — for order-stage WebSocket events from the Node.js backend
+HTTP Client: dio — with JWT interceptor for auto-refresh on 401
+Local Storage: flutter_secure_storage — for JWT and refresh token; never SharedPreferences for secrets
+PDF Generation: pdf + printing — for Vault export and invoice download
+QR Code: qr_flutter — rendered on Stitching Tickets linking to /track/:readableId portal
+Phone Launch: url_launcher — tel: URI scheme for one-tap tailor calling
+Camera/Gallery: image_picker + cloudinary_flutter — signed upload preset for fabric reference photos
+Maps: Google Maps Places API — GeoPoint storage for tailor search by city
+1.2  Backend — Node.js (TypeScript) + Fastify + Prisma
+Runtime: Node.js 20 LTS (LTS — mandatory for production stability)
+Framework: Fastify 4.x — schema-validated routes via @fastify/type-provider-typebox; no Express
+ORM: Prisma 5.x — type-safe schema, migrations, and query builder against PostgreSQL 15
+Auth: @fastify/jwt — HS256 access token (60-min TTL) + RS256 refresh token (30-day TTL); role claim embedded in JWT payload
+Firebase Admin: firebase-admin — OTP verification via Firebase Auth phone provider; RTDB write for chat channel creation on order approval
+WebSockets: socket.io 4.x — adapter: @socket.io/redis-adapter for multi-instance order-stage broadcasts
+Queue: BullMQ — Redis-backed; used for async PDF generation (invoice, stitching ticket) and FCM dispatch
+PDF Engine: PDFKit — for server-side invoice and stitching ticket PDF generation; output stored to Cloudinary
+QR Generation: qrcode — Node library for embedding QR in stitching ticket PDF
+Validation: Zod — schema validation at service layer, TypeBox at Fastify route layer
+Environment: dotenv-safe — with .env.example enforcement; no secrets in source
+1.3  Database — PostgreSQL 15 (Supabase)
+Provider: Supabase — PostgreSQL 15 with built-in RLS policy enforcement
+Row-Level Security: RLS MUST be enabled on all production tables. The API layer is a convenience gate; the DB is the security bedrock.
+Regions: Deploy to the GCP region nearest to Pakistan (confirm before provisioning for data residency compliance — Open Issue #4 in SRS)
+Migrations: Prisma Migrate — version-controlled, CI-run, never manual SQL in production
+Encryption at Rest: Measurement Vault fields encrypted AES-256; key derived from Client UID — never stored with tailor data
+ID Convention (SF-Readable): TR-{City}-{Seq} for Tailors, CL-{City}-{Seq} for Clients, SF-O-{T4}-{C4}-{EpochMs} for Orders, SF-M-{T4}-{C4}-{EpochMs} for Measurements, SF-INV-{TailorShort}-{YY}-{Seq} for Invoices
+1.4  Real-Time Infrastructure
+CONCERN
+TECHNOLOGY
+RATIONALE
+In-App Chat (TEXT/IMAGE/SYSTEM)
+Firebase Realtime Database
+Sub-200ms delivery; Firebase SDK handles reconnection; offline queue built-in
+Order Stage Updates (Live Checklist)
+Socket.io (WebSocket)
+Server pushes stage events on PATCH /garments/:id/stage; client StreamBuilder re-renders checklist
+Push Notifications (Background)
+FCM via firebase-admin
+Dispatched via BullMQ job on booking approval, stage advance, chat message when app backgrounded
+Supabase Realtime (Fallback)
+Supabase Realtime
+Secondary trigger on order_garments table for clients without active Socket.io connection
+SECTION 2 — CORE LOGIC IMPLEMENTATION (THE MASTER SOLUTION GAPS)
+2.1  The Measurement Vault — Versioned, Append-Only, Client-Owned
+The Measurement Vault is StitchFlow's most architecturally differentiated feature. Every competitor stores measurements in the tailor's account. The Vault reverses this: the Client owns the data permanently, across all tailors, forever. Implementation must be exact.
+2.1.1  Database Schema
+  PostgreSQL — measurements DDL
+-- measurements table (append-only; never UPDATE existing rows)
+CREATE TABLE measurements (
+  id            VARCHAR(48)    PRIMARY KEY,  -- SF-M-{T4}-{C4}-{EpochMs}
+  client_id     UUID           NOT NULL REFERENCES users(id),
+  tailor_id     UUID           NOT NULL REFERENCES users(id),
+  version       SMALLINT       NOT NULL DEFAULT 1,
+  parent_id     VARCHAR(48)    REFERENCES measurements(id),  -- chain
+  is_current    BOOLEAN        NOT NULL DEFAULT true,
+  neck          NUMERIC(5,1),  chest     NUMERIC(5,1),
+  waist         NUMERIC(5,1),  hips      NUMERIC(5,1),
+  shoulder_width NUMERIC(5,1), sleeve_length NUMERIC(5,1),
+  inseam        NUMERIC(5,1),  thigh     NUMERIC(5,1),
+  shirt_length  NUMERIC(5,1),  pant_length NUMERIC(5,1),
+  custom_notes  VARCHAR(500),
+  recorded_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+);
+-- Trigger: flip is_current=false on ALL prior rows for this client
+-- when a new measurement is inserted for the same tailor-client pair
+CREATE OR REPLACE FUNCTION vault_set_current() RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE measurements SET is_current = false
+  WHERE client_id = NEW.client_id AND id != NEW.id;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_vault_current
+  AFTER INSERT ON measurements
+  FOR EACH ROW EXECUTE FUNCTION vault_set_current();
+2.1.2  Triple-Gate Security — MANDATORY
+⚠ CRITICAL
+ALL THREE GATES MUST PASS for any write to the Measurement Vault.
+A compromised API layer cannot bypass Gate 3 (RLS). This is non-negotiable.
+Implement in this exact order: JWT Role → Link Existence → RLS Policy.
+  Triple-Gate Security — Full Implementation
+// ── GATE 1: JWT Role Check (Fastify Middleware) ──────────────────
+// Applied to ALL /measurements routes via preHandler hook
+async function tailorRoleGuard(request, reply) {
+  const { role } = request.user; // decoded JWT payload
+  if (role !== 'TAILOR') {
+    return reply.code(403).send({
+      code: 'ROLE_FORBIDDEN',
+      message: 'Only TAILOR role may write to the Vault'
+    });
+  }
+}
+// ── GATE 2: Link Existence Check (Service Layer) ─────────────────
+// Executed INSIDE the measurements service before any DB write
+async function assertActiveLink(tailorId, clientId, prisma) {
+  const link = await prisma.tailorClientLink.findFirst({
+    where: { tailor_id: tailorId, client_id: clientId, is_active: true }
+  });
+  if (!link) throw new ForbiddenError({
+    code: 'LINK_NOT_FOUND',
+    message: 'No active order link between tailor and client'
+  });
+}
+// ── GATE 3: Supabase RLS Policy (Database Layer) ─────────────────
+-- Applied directly in PostgreSQL; cannot be bypassed by API layer
+ALTER TABLE measurements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY measurement_write ON measurements
+  FOR INSERT WITH CHECK (
+    tailor_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM tailor_client_links
+      WHERE tailor_id = auth.uid()
+        AND client_id = measurements.client_id
+        AND is_active = true
+    )
+  );
+-- Read policy: clients read their own; tailors read linked clients only
+CREATE POLICY measurement_read ON measurements FOR SELECT USING (
+  client_id = auth.uid()
+  OR (
+    tailor_id = auth.uid() AND EXISTS (
+      SELECT 1 FROM tailor_client_links
+      WHERE tailor_id = auth.uid()
+        AND client_id = measurements.client_id
+        AND is_active = true
+    )
+  )
+);
+2.2  Capacity Gate — Serialised Transaction (Race-Condition Proof)
+Tailors configure a Max Active Orders ceiling. The system MUST enforce this ceiling atomically. Without serialisation, two simultaneous booking requests can both pass the capacity check and both create orders, exceeding the ceiling. This is a hard correctness requirement.
+⚠ CRITICAL
+Use SERIALIZABLE isolation + SELECT ... FOR UPDATE on tailor_profiles row.
+Never use a simple SELECT followed by INSERT — this creates a TOCTOU race condition.
+The FOR UPDATE lock ensures only one transaction holds the row lock at a time.
+  Capacity Gate — Serialised Transaction (bookingService.ts)
+// bookingService.ts — createBooking()
+export async function createBookingWithCapacityGate(
+  tailorId: string,
+  bookingPayload: CreateBookingDTO,
+  prisma: PrismaClient
+): Promise<Order> {
+  return await prisma.$transaction(async (tx) => {
+    // ── Step 1: Acquire row-level lock on tailor profile ─────
+    // FOR UPDATE prevents any other transaction from reading
+    // or modifying this row until this transaction commits/rolls back
+    const tailor = await tx.$queryRaw<TailorProfile[]>`
+      SELECT current_active_orders, max_active_orders, availability_status
+      FROM tailor_profiles
+      WHERE tailor_id = ${tailorId}
+      FOR UPDATE
+    `;
+    if (!tailor.length) throw new NotFoundError({ code: 'TAILOR_NOT_FOUND' });
+    const t = tailor[0];
+    // ── Step 2: Capacity enforcement gate ────────────────────
+    if (t.current_active_orders >= t.max_active_orders) {
+      throw new CapacityExceededException({
+        code:    'CAPACITY_EXCEEDED',
+        http:    409,
+        message: `Tailor at full capacity (${t.current_active_orders}/${t.max_active_orders})`,
+      });
+    }
+    // ── Step 3: Availability status gate ─────────────────────
+    if (t.availability_status !== 'ACTIVE') {
+      throw new UnavailableException({
+        code:    'TAILOR_UNAVAILABLE',
+        http:    409,
+        message: 'Tailor is not currently accepting bookings',
+      });
+    }
+    // ── Step 4: Create order (within the same locked transaction)
+    const order = await tx.order.create({ data: { ...bookingPayload, tailor_id: tailorId } });
+    return order;
+    // COMMIT: lock released; capacity enforced atomically
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+2.3  Unified POS Action — Single Endpoint, Dual Document Generation
+Endpoint: POST /api/v1/orders/:orderId/pos  |  Auth: JWT (TAILOR role)
+One API call, one atomic transaction, two documents generated in parallel. No double data entry. No split billing/production workflow.
+  Unified POS Action — posService.ts
+// posService.ts — executePOSAction()
+export async function executePOSAction(orderId: string, posPayload: POSPayload) {
+  // ── Phase 1: Persist financial data (within DB transaction) ──
+  const { invoice, order, garments } = await prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.create({
+      data: {
+        id:             generateInvoiceId(posPayload.tailorShort),
+        order_id:       orderId,
+        tailor_id:      posPayload.tailorId,
+        client_id:      posPayload.clientId,
+        base_price:     posPayload.basePrice,
+        advance_paid:   posPayload.advancePaid,
+        balance_due:    posPayload.basePrice - posPayload.advancePaid,
+        payment_status: posPayload.advancePaid > 0 ? 'ADVANCE_RECEIVED' : 'BALANCE_PENDING',
+      }
+    });
+    const updatedOrder = await tx.order.update({
+      where: { id: orderId },
+      data:  { invoice_id: invoice.id, booking_status: 'CONFIRMED' }
+    });
+    const garments = await tx.orderGarment.findMany({ where: { order_id: orderId } });
+    return { invoice, order: updatedOrder, garments };
+  });
+  // ── Phase 2: Generate both documents in parallel ──────────
+  const [invoicePdfUrl, stitchingTicketUrl] = await Promise.all([
+    generateInvoicePDF(invoice, order),       // PDFKit → Cloudinary
+    generateStitchingTicket(order, garments), // PDFKit + QR → Cloudinary
+  ]);
+  // ── Phase 3: Persist PDF URLs back to records ─────────────
+  await Promise.all([
+    prisma.invoice.update({ where:{id:invoice.id}, data:{pdf_url:invoicePdfUrl} }),
+    prisma.stitchingTicket.update({ where:{order_id:orderId}, data:{pdf_url:stitchingTicketUrl} }),
+  ]);
+  return { invoice, invoicePdfUrl, stitchingTicketUrl };
+}
+// QR Code embedded in Stitching Ticket links to live tracker:
+// https://app.stitchflow.io/track/{client.readableId}
+// Thermal (58mm) and A4 print layouts must both be supported.
+2.3.1  Stitching Ticket Required Fields
+Client Name + Readable ID (e.g. CL-Karachi-042)
+All measurement fields for the relevant garment type (from linked Vault record)
+Frozen requirements checklist (post client-verification — read-only)
+Assigned Staff Master name and specialty
+Delivery deadline
+QR Code qrcode → /track/:readableId (live production status URL)
+Print format support: Thermal 58mm (ESC/POS compatible) AND A4 landscape
+2.4  The Production Checklist — Granular Garment-Level Stages
+Replace all single-field status enums with a 11-stage, append-only production checklist per garment. This is the core solution to the Black Box Problem (GAP-001). The checklist is client-facing, real-time, and immutable (stages cannot be reversed).
+  Production Checklist — Enum + Append-Only Stage History
+-- order_garments.delivery_stage ENUM definition
+CREATE TYPE garment_stage AS ENUM (
+  'MEASUREMENT_CONFIRMED',
+  'FABRIC_CUT',
+  'INTERLINING_ATTACHED',
+  'BODY_STITCHED',
+  'COLLAR_LAPEL_ATTACHED',
+  'SLEEVES_SET',
+  'POCKETS_SEWN',
+  'LINING_INSTALLED',
+  'BUTTONS_CLOSURES_ATTACHED',
+  'PRESSING_FINISHING',
+  'QC_PASSED',
+  'READY'
+);
+-- stage_history: APPEND-ONLY JSONB array — never delete, never reorder
+-- Each entry: { stage, advanced_at: ISO8601, advanced_by: tailorId }
+-- PATCH /api/v1/garments/:garmentId/stage
+-- Validation: new stage must be NEXT in enum sequence (no skipping, no reversal)
+-- Action: UPDATE delivery_stage + APPEND to stage_history + emit Socket.io event
+-- Socket event: 'stage:updated' on room `order:${orderId}` with full garment payload
+Client UI Behaviour: Completed stages render as GREEN checkboxes. Current stage renders as PULSING AMBER. Future stages render as GREY. StreamBuilder on Supabase Realtime (client side) + Socket.io room (active sessions). No pull-to-refresh required under any circumstances.
+SECTION 3 — DATABASE & API REQUIREMENTS
+3.1  Auth — Dual-Entry Gateway with Firebase OTP
+Architecture: Two distinct onboarding paths from one landing screen. Role is set at registration and embedded in JWT. It cannot be changed post-registration.
+  Dual-Entry Gateway — register()
+// POST /api/v1/auth/register
+// Body: { phone, role: 'TAILOR' | 'CLIENT', firebaseIdToken, ...profileFields }
+async function register(body: RegisterDTO) {
+  // Step 1: Verify Firebase ID token (phone OTP already validated by Firebase client SDK)
+  const firebaseUser = await admin.auth().verifyIdToken(body.firebaseIdToken);
+  if (firebaseUser.phone_number !== normalizeE164(body.phone))
+    throw new UnauthorizedError({ code: 'PHONE_MISMATCH' });
+  // Step 2: Create user record
+  const user = await prisma.user.create({
+    data: {
+      phone:       firebaseUser.phone_number,
+      role:        body.role,  // 'TAILOR' or 'CLIENT' — immutable
+      readable_id: await generateReadableId(body.role, body.city),
+      firebase_uid: firebaseUser.uid,
+      ...roleSpecificFields(body),
+    }
+  });
+  // Step 3: Mint JWT with role claim
+  const accessToken  = signJWT({ sub: user.id, role: user.role }, '60m');
+  const refreshToken = signRefreshJWT({ sub: user.id }, '30d');
+  return { user, accessToken, refreshToken };
+}
+// Readable ID generation — SF convention
+// TAILOR: TR-{CityNormalized}-{ZeroPaddedSeq}  e.g. TR-Mardan-001
+// CLIENT: CL-{CityNormalized}-{ZeroPaddedSeq}  e.g. CL-Karachi-042
+// Sequence is per-city, per-role; stored in a sequences table with SELECT FOR UPDATE
+3.2  Priority v1.0 Core Endpoints
+METHOD
+ENDPOINT
+AUTH
+DESCRIPTION
+POST
+/api/v1/auth/register
+Public
+Dual-Entry Gateway; generate Readable ID; set role in JWT
+POST
+/api/v1/auth/verify-otp
+Public
+Firebase OTP verification; returns ID token for registration
+POST
+/api/v1/auth/login
+Public
+Login; return access JWT (60m) + refresh (30d)
+POST
+/api/v1/auth/refresh
+Refresh Token
+Rotate access token
+GET
+/api/v1/search/track/:readableId
+Public
+Anonymous order status by Client Readable ID — no auth required
+GET
+/api/v1/search/tailors
+JWT
+Geo-search tailors: city, spec, availability, price range
+POST
+/api/v1/measurements
+JWT (Tailor)
+Create versioned Vault record — ALL THREE GATES enforced
+GET
+/api/v1/measurements/vault/:clientId
+JWT
+Current measurement + full version history
+GET
+/api/v1/measurements/vault/:clientId/export
+JWT (Client own)
+Generate Vault PDF export via Cloudinary
+POST
+/api/v1/orders
+JWT (Client)
+Create booking — runs Capacity Gate serialised transaction
+PATCH
+/api/v1/orders/:orderId/approve
+JWT (Tailor)
+Approve → create link + Firebase chat channel + ticket stub
+PATCH
+/api/v1/orders/:orderId/reject
+JWT (Tailor)
+Reject with reason code (FULLY_BOOKED | SPECIALIZATION_MISMATCH | ...)
+POST
+/api/v1/orders/:orderId/pos
+JWT (Tailor)
+⭐ Unified POS: generate Invoice + Stitching Ticket atomically
+PATCH
+/api/v1/garments/:garmentId/stage
+JWT (Tailor)
+Advance stage → append history + emit Socket.io 'stage:updated'
+POST
+/api/v1/orders/:orderId/requirements/verify
+JWT (Client)
+Submit verified requirements — unlocks IN_PRODUCTION
+GET
+/api/v1/invoices/:invoiceId/pdf
+JWT
+Download invoice PDF (Cloudinary URL)
+GET
+/api/v1/tickets/:ticketId/pdf
+JWT (Tailor)
+Download stitching ticket PDF + QR code
+3.3  Permission Matrix (Enforced at Both API + RLS Layers)
+OPERATION
+CLIENT
+TAILOR (Own)
+TAILOR (Others)
+ADMIN
+STAFF
+Write Measurement Vault
+✗
+✓
+✗
+✓
+✗
+⚠
+Read own Measurements
+✓
+✓
+✗
+✓
+✗
+Create Booking
+✓
+✗
+✗
+✗
+✗
+Approve / Reject Booking
+✗
+✓
+✗
+✓
+✗
+Advance Garment Stage
+✗
+✓
+✗
+✗
+✗
+Generate Invoice + Ticket
+✗
+✓
+✗
+✗
+✗
+View own Orders
+✓
+✓
+✗
+✓
+Own
+Anonymous Track (/track)
+✓
+✓
+✓
+✓
+✓
+⚠ Measurement write access: requires ALL THREE gates (JWT role + Link existence + RLS policy). See Section 2.1.2.
+SECTION 4 — UI/UX DIRECTIVES
+4.1  Tailor Side — Active Workload Dashboard
+Design Philosophy: This is a command centre, not a report dashboard. Every pixel earns its place by reducing tailor cognitive load. The screen must surface the most urgent action without scrolling.
+WIDGET
+POSITION
+DATA SOURCE / QUERY
+PRIORITY
+REALTIME
+Hero Capacity Gauge
+Top of screen, full width
+current_active_orders / max_active_orders (radial gauge, colour: green→amber→red)
+P0 — always visible
+Socket.io
+Booking Queue Badge
+Nav bar icon + screen tab
+COUNT(*) FROM orders WHERE booking_status='PENDING'
+P0 — unread count
+Supabase RT
+Active Orders List
+Main scroll area
+orders WHERE status IN ('CONFIRMED','IN_PRODUCTION') ORDER BY preferred_date_end ASC
+P0
+Socket.io
+Per-Garment Stage Progress
+Inline in order card
+order_garments.delivery_stage per order
+P0
+Socket.io
+Awaiting Requirements Alert
+Alert banner (amber)
+orders WHERE requirements_verified=false AND booking_status='CONFIRMED'
+P1
+Supabase RT
+Overdue Orders
+Red-flagged section
+orders WHERE preferred_date_end < NOW() AND status != 'COMPLETED'
+P1
+Polling (5m)
+Balance Due Count
+Secondary stat card
+COUNT(*) FROM invoices WHERE payment_status='BALANCE_PENDING'
+P1
+Polling (5m)
+Staff Workload Grid
+Collapsible bottom section
+staff_profiles JOIN order_garments for assignment counts
+P2
+Manual refresh
+4.2  Client Side — Search & Track Interface
+Design Philosophy: The single most powerful client action is finding out where their garment is. The entire app architecture flows from this. The Track tab is the home screen — not orders, not profile.
+SCREEN
+PRIMARY ELEMENT
+BEHAVIOUR / BINDING
+REAL-TIME
+Track (Home Tab)
+Large ID search bar
+Auto-debounced at 3+ chars; results < 1.5s; accessible without login on Flutter Web portal
+GET /track/:id
+Track Result
+Live Production Checklist
+StreamBuilder on Supabase RT; completed=GREEN, current=PULSING AMBER, future=GREY; no refresh
+Socket.io + Supabase RT
+Measurement Vault
+Read-only grouped fields
+Version history expandable per-tailor; Export PDF button at bottom; Update Request → chat message to tailor
+Static (JWT read)
+Requirements Verify
+Checklist form modal
+Fullscreen modal post-booking confirmation; 24hr auto-approval countdown displayed; frozen on submit
+FCM push trigger
+Orders History
+Status chips timeline
+Ordered by recency; tap to expand full checklist; PENDING shows 'Awaiting Approval' animation
+Supabase RT
+Discover Tailors
+Map + filter list
+Geo-search by city; filter: spec, availability, price; portfolio grid preview on tap
+Static (search)
+Chat
+WhatsApp-style thread
+StreamBuilder on Firebase RTDB /{chatChannelId}/messages; image picker for fabric photos; system msgs grey
+Firebase RTDB
+Profile
+Readable ID (large, prominent)
+QR code of own Readable ID for sharing; 'Export Vault' CTA; 'Update Request' CTA
+Static
+SECTION 5 — SPRINT ROADMAP & OPEN ISSUES
+5.1  v1.0 Core — Sprint Priority Order (6 Sprints / 12 Weeks)
+Sprint 1–2: Dual-Entry Gateway (Auth, OTP, Readable ID generation, JWT), PostgreSQL schema migrations, RLS policies, Fastify skeleton
+Sprint 3: Measurement Vault (Triple-Gate Security, versioned append-only, client read, tailor write-gated)
+Sprint 4: Booking + Capacity Gate (serialised transaction), Booking Queue (Tailor), Order creation (Client), Approval/Rejection flow
+Sprint 5: Unified POS Action (Invoice + Stitching Ticket with QR), Garment stage advancement, Production Checklist (Tailor-side)
+Sprint 6: Client Track tab (ID search, live checklist via Socket.io), Basic Firebase RTDB chat, Flutter Web portal for anonymous tracking
+5.2  Open Issues — Resolve Before Sprint 1
+📋 OPEN
+#1  Multi-Garment Requirements: One verification form per garment, or one combined form per order?
+#2  Measurement Conflict Resolution: Two tailors record conflicting measurements — proposed: latest by timestamp; client can flag dispute.
+#3  Staff App Access: Lightweight Staff sub-role with limited JWT scope (read own garment assignments only) — preferred over separate app.
+#4  Data Residency: Confirm GCP region for Pakistan data residency compliance BEFORE infrastructure provisioning.
+#5  Invoice Numbering: Annual reset with year prefix (SF-INV-T8A3-25-001) vs. continuous. Proposed: annual reset.
+SECTION 6 — SECURITY & COMPLIANCE SUMMARY
+6.1  Security Architecture Summary
+SECURITY CONTROL
+IMPLEMENTATION
+Authentication
+Firebase Phone OTP → Firebase ID Token → Backend JWT (HS256 access / RS256 refresh). OTP cannot be bypassed.
+Authorisation
+RBAC via JWT role claim (TAILOR | CLIENT | ADMIN | STAFF). Role immutable post-registration.
+Measurement Vault Security
+Triple-Gate: (1) JWT role check, (2) tailor_client_links active check, (3) Supabase RLS policy. All three must pass.
+Capacity Gate Atomicity
+Serializable isolation level + SELECT FOR UPDATE. Prevents TOCTOU race condition on concurrent bookings.
+Measurement Encryption
+AES-256 at rest. Encryption key derived from Client UID — not stored with tailor or in tailor namespace.
+Anonymous Tracking
+Public /track/:readableId returns: first name, order status, production checklist ONLY. Zero PII, zero measurements, zero financials.
+Chat Security
+Firebase RTDB rules: read/write restricted to participant UIDs only (tailor_id + client_id on the order).
+API Rate Limiting
+@fastify/rate-limit: 100 req/min per IP on public endpoints; 500 req/min per JWT on authenticated endpoints.
+File Uploads
+Cloudinary signed upload presets (60s TTL). Server validates content type. No direct user-controlled file paths.
+CLOSING DIRECTIVE TO THE ANTI-GRAVITY ENGINE
+You have received the complete StitchFlow v1.0 Technical Executive Order. The following four items are non-negotiable and must appear in every relevant implementation:
+Triple-Gate Security on the Measurement Vault — JWT Role → Link Existence → RLS Policy. All three gates, in order, on every write.
+Serialised Transaction for the Capacity Gate — SERIALIZABLE isolation + SELECT FOR UPDATE. No optimistic locking, no application-level checks alone.
+Unified POS Action — a single endpoint that atomically creates Invoice + Stitching Ticket with QR code in one database transaction with parallel PDF generation.
+Append-Only Production Checklist — stage_history is a write-once log. Stages advance forward only. Clients see the checklist in real-time via Socket.io without polling.
+This order supersedes all verbal directives. Any implementation deviation must be captured as a formal amendment with Principal Architect and Product Lead dual sign-off. Build with precision.
+Document Control: StitchFlow Master Solution SRS/SDD v1.0  |  Principal Full-Stack Architect  |  Review: Before each Sprint Kickoff  |  Change Management: Written amendment + version increment + dual sign-off required
