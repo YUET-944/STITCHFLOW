@@ -1,0 +1,1839 @@
+openapi: 3.0.3
+info:
+  title: StitchFlow API
+  version: 1.0.0
+  description: |
+    StitchFlow tailoring platform API - Complete contract for client and tailor workflows.
+    
+    Built with:
+    - Backend: Node.js (Fastify) + TypeBox schemas
+    - Frontend: Flutter with Riverpod state management
+    - Auth: JWT Bearer tokens with refresh token rotation
+    - OTP: Email-based verification system
+    
+    Base URL: http://localhost:3000/api/v1
+    
+    ## Authentication
+    Most endpoints require JWT Bearer authentication. Use `/auth/login` or `/auth/register` to obtain tokens.
+    Include the access token in the Authorization header: `Bearer <token>`
+    
+    ## Roles
+    - **CLIENT**: Can place orders, view history, manage measurements
+    - **TAILOR**: Can manage queue, staff, portfolio, and update order stages
+    - **STAFF**: Limited access (assigned by tailors)
+    
+    ## Error Response Format
+    All errors follow this structure:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human-readable error message"
+      }
+    }
+    ```
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: https://api.stitchflow.com/v1
+    description: Production server
+
+tags:
+  - name: Auth
+    description: Authentication and authorization endpoints
+  - name: Users
+    description: User profile management
+  - name: Tailors
+    description: Tailor discovery and profile management
+  - name: Orders
+    description: Order creation, tracking, and management
+  - name: Measurements
+    description: Client measurement vault
+  - name: Staff
+    description: Tailor staff management
+  - name: Search
+    description: Search and discovery endpoints
+  - name: Portfolio
+    description: Tailor portfolio management
+
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+    description: |
+      JWT Bearer token obtained from login/register.
+      Use the access token for authenticated requests.
+      Refresh tokens are used via `/auth/refresh` endpoint.
+
+paths:
+  # ── AUTHENTICATION ────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: Register a new client or tailor account. OTP verification required before account activation.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Registration successful, OTP sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      description: Authenticate with username and password. Returns access and refresh tokens.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/send-otp:
+    post:
+      tags: [Auth]
+      summary: Send OTP to email
+      description: Send a one-time password to the user's email for verification.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: User's email address
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "OTP sent to email"
+        '400':
+          description: Invalid email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many OTP requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify OTP
+      description: Verify the OTP sent to the user's email. Required for account activation.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email:
+                  type: string
+                  format: email
+                otp:
+                  type: string
+                  description: 6-digit OTP code
+                  pattern: '^[0-9]{6}$'
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "OTP verified"
+        '400':
+          description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: Use refresh token to obtain a new access token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+                  description: Refresh token from login response
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    delete:
+      tags: [Auth]
+      summary: Logout user
+      description: Invalidate the current session and tokens.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── USERS ────────────────────────────────────────────────────────────────────────
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      description: Retrieve the authenticated user's profile information.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      description: Retrieve a user's public profile by ID.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User UUID
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── TAILORS ────────────────────────────────────────────────────────────────────────
+  /tailors:
+    get:
+      tags: [Tailors]
+      summary: List tailors
+      description: Search and discover tailors with optional filters. Supports pagination.
+      security: []
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by city
+        - name: specialization
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [MENS_WEAR, WOMENS_WEAR, KIDS_WEAR, ALTERATIONS, EMBROIDERY]
+          description: Filter by specialization
+        - name: availability
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [AVAILABLE, BUSY, UNAVAILABLE]
+          description: Filter by availability status
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Number of results per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: List of tailors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      tailors:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TailorSummary'
+                      total:
+                        type: integer
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+
+  /tailors/{id}:
+    get:
+      tags: [Tailors]
+      summary: Get tailor profile
+      description: Retrieve a tailor's public profile by ID.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Tailor UUID or readable ID
+      responses:
+        '200':
+          description: Tailor profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/TailorProfile'
+        '404':
+          description: Tailor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tailors/public/{id}:
+    get:
+      tags: [Tailors]
+      summary: Get detailed tailor profile
+      description: Retrieve a detailed public profile including portfolio and reviews.
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Tailor UUID or readable ID
+      responses:
+        '200':
+          description: Detailed tailor profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/TailorProfileDetailed'
+        '404':
+          description: Tailor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── ORDERS ────────────────────────────────────────────────────────────────────────
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Create new order
+      description: Create a new order as a client. Requires CLIENT role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get order by ID
+      description: Retrieve order details. Only accessible by order owner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Order UUID or readable ID
+      responses:
+        '200':
+          description: Order retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '403':
+          description: Forbidden - not order owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags: [Orders]
+      summary: Update order
+      description: Update order details. Only accessible by order owner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Order UUID or readable ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderRequest'
+      responses:
+        '200':
+          description: Order updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '403':
+          description: Forbidden - not order owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}/requirements:
+    post:
+      tags: [Orders]
+      summary: Submit order requirements
+      description: Submit garment measurements and requirements for an order.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Order UUID or readable ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequirementsRequest'
+      responses:
+        '200':
+          description: Requirements submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not order owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{id}/stage:
+    patch:
+      tags: [Orders]
+      summary: Update order delivery stage
+      description: Update the delivery stage of an order. Only accessible by the assigned tailor.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Order UUID or readable ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage]
+              properties:
+                stage:
+                  $ref: '#/components/schemas/GarmentStage'
+                notes:
+                  type: string
+                  description: Optional notes about stage update
+      responses:
+        '200':
+          description: Stage updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid stage transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not assigned tailor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/tailor/queue:
+    get:
+      tags: [Orders]
+      summary: Get tailor's order queue
+      description: Retrieve all orders assigned to the authenticated tailor. Requires TAILOR role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED]
+          description: Filter by booking status
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Number of results per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Order queue retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      orders:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Order'
+                      total:
+                        type: integer
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+        '403':
+          description: Forbidden - not a tailor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/client/history:
+    get:
+      tags: [Orders]
+      summary: Get client's order history
+      description: Retrieve all orders placed by the authenticated client. Requires CLIENT role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED]
+          description: Filter by booking status
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Number of results per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Order history retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      orders:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Order'
+                      total:
+                        type: integer
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+        '403':
+          description: Forbidden - not a client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── MEASUREMENTS ──────────────────────────────────────────────────────────────────
+  /measurements:
+    post:
+      tags: [Measurements]
+      summary: Create or update measurements
+      description: Create new measurements or update existing ones for a client.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeasurementRequest'
+      responses:
+        '200':
+          description: Measurements saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Measurement'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /measurements/client/{id}:
+    get:
+      tags: [Measurements]
+      summary: Get client measurements
+      description: Retrieve all measurements for a specific client.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Client UUID
+      responses:
+        '200':
+          description: Measurements retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Measurement'
+        '403':
+          description: Forbidden - not authorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Client not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── STAFF ──────────────────────────────────────────────────────────────────────────
+  /staff:
+    get:
+      tags: [Staff]
+      summary: Get tailor's staff
+      description: Retrieve all staff members for the authenticated tailor. Requires TAILOR role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Number of results per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Staff list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      staff:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Staff'
+                      total:
+                        type: integer
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+        '403':
+          description: Forbidden - not a tailor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags: [Staff]
+      summary: Add staff member
+      description: Add a new staff member to the tailor's team. Requires TAILOR role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStaffRequest'
+      responses:
+        '201':
+          description: Staff member added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Staff'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a tailor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /staff/{id}:
+    delete:
+      tags: [Staff]
+      summary: Remove staff member
+      description: Remove a staff member from the tailor's team. Requires TAILOR role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Staff UUID
+      responses:
+        '200':
+          description: Staff member removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Staff member removed"
+        '403':
+          description: Forbidden - not a tailor or not owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Staff member not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── SEARCH ──────────────────────────────────────────────────────────────────────────
+  /search/tailors:
+    get:
+      tags: [Search]
+      summary: Search tailors
+      description: Advanced search for tailors with multiple filters. Supports pagination.
+      security: []
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by city
+        - name: specialization
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [MENS_WEAR, WOMENS_WEAR, KIDS_WEAR, ALTERATIONS, EMBROIDERY]
+          description: Filter by specialization
+        - name: availability
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [AVAILABLE, BUSY, UNAVAILABLE]
+          description: Filter by availability status
+        - name: minPrice
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0
+          description: Minimum price range
+        - name: maxPrice
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 0
+          description: Maximum price range
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Free-text search (name, business name)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Number of results per page
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Pagination offset
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      tailors:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TailorSummary'
+                      total:
+                        type: integer
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+
+  # ── PORTFOLIO ──────────────────────────────────────────────────────────────────────
+  /tailors/portfolio:
+    post:
+      tags: [Portfolio]
+      summary: Add portfolio item
+      description: Add a new portfolio item (image with description). Requires TAILOR role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [imageUrl, title]
+              properties:
+                imageUrl:
+                  type: string
+                  format: uri
+                  description: URL of the portfolio image
+                title:
+                  type: string
+                  maxLength: 100
+                  description: Portfolio item title
+                description:
+                  type: string
+                  maxLength: 500
+                  description: Optional description
+                garmentType:
+                  type: string
+                  enum: [MENS_WEAR, WOMENS_WEAR, KIDS_WEAR, ALTERATIONS, EMBROIDERY]
+                  description: Garment type category
+      responses:
+        '201':
+          description: Portfolio item added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/PortfolioItem'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a tailor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ── COMPONENTS ────────────────────────────────────────────────────────────────────────
+components:
+  schemas:
+    # ── ENUMS ───────────────────────────────────────────────────────────────────────
+    Role:
+      type: string
+      enum: [CLIENT, TAILOR, STAFF]
+      description: User role in the system
+
+    AccountStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED, PENDING_VERIFICATION]
+      description: Account status
+
+    BookingStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED]
+      description: Order booking status
+
+    GarmentStage:
+      type: string
+      enum: [MEASUREMENT_CONFIRMED, FABRIC_CUT, INTERLINING_ATTACHED, MAIN_FABRIC_ATTACHED, BUTTONS_ZIPPERS_ATTACHED, HEMMING_FINAL_TOUCHES, QC_PASSED, READY_FOR_DELIVERY, DELIVERED]
+      description: Garment delivery stage
+
+    PaymentStatus:
+      type: string
+      enum: [PENDING, PAID, REFUNDED]
+      description: Payment status
+
+    Specialization:
+      type: string
+      enum: [MENS_WEAR, WOMENS_WEAR, KIDS_WEAR, ALTERATIONS, EMBROIDERY]
+      description: Tailor specialization
+
+    AvailabilityStatus:
+      type: string
+      enum: [AVAILABLE, BUSY, UNAVAILABLE]
+      description: Tailor availability status
+
+    # ── AUTH SCHEMAS ─────────────────────────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [username, password, email, role, full_name, city]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[a-zA-Z0-9_]+$'
+          description: Unique username
+        password:
+          type: string
+          minLength: 8
+          format: password
+          description: Strong password
+        email:
+          type: string
+          format: email
+          description: User email
+        role:
+          $ref: '#/components/schemas/Role'
+        full_name:
+          type: string
+          maxLength: 100
+          description: User's full name
+        city:
+          type: string
+          maxLength: 100
+          description: User's city
+        phone:
+          type: string
+          pattern: '^[0-9+]+$'
+          description: Optional phone number
+        # Tailor-specific fields
+        business_name:
+          type: string
+          maxLength: 100
+          description: Business name (for tailors)
+        specializations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Specialization'
+          description: List of specializations (for tailors)
+        price_range_min:
+          type: number
+          minimum: 0
+          description: Minimum price range (for tailors)
+        price_range_max:
+          type: number
+          minimum: 0
+          description: Maximum price range (for tailors)
+        location_address:
+          type: string
+          maxLength: 255
+          description: Full address (for tailors)
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Username or email
+        password:
+          type: string
+          format: password
+          description: User password
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            accessToken:
+              type: string
+              description: JWT access token
+            refreshToken:
+              type: string
+              description: JWT refresh token
+
+    TokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+              description: New JWT access token
+
+    # ── USER SCHEMAS ─────────────────────────────────────────────────────────────────
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User UUID
+        readable_id:
+          type: string
+          description: Human-readable ID (e.g., CLI-001)
+        username:
+          type: string
+          description: Username
+        email:
+          type: string
+          format: email
+          description: User email
+        full_name:
+          type: string
+          description: Full name
+        city:
+          type: string
+          description: City
+        location_city:
+          type: string
+          description: City (alternate field)
+        location_address:
+          type: string
+          description: Full address
+        phone:
+          type: string
+          description: Phone number
+        profile_photo_url:
+          type: string
+          format: uri
+          description: Profile photo URL
+        role:
+          $ref: '#/components/schemas/Role'
+        account_status:
+          $ref: '#/components/schemas/AccountStatus'
+        is_verified:
+          type: boolean
+          description: Email verification status
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        tailor_profile:
+          $ref: '#/components/schemas/TailorProfile'
+
+    # ── TAILOR SCHEMAS ───────────────────────────────────────────────────────────────
+    TailorSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        readable_id:
+          type: string
+        full_name:
+          type: string
+        city:
+          type: string
+        location_address:
+          type: string
+        profile_photo_url:
+          type: string
+          format: uri
+        is_verified:
+          type: boolean
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+        review_count:
+          type: integer
+        tailor_profile:
+          type: object
+          properties:
+            business_name:
+              type: string
+            specializations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Specialization'
+            availability_status:
+              $ref: '#/components/schemas/AvailabilityStatus'
+            price_range_min:
+              type: number
+            price_range_max:
+              type: number
+
+    TailorProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        business_name:
+          type: string
+        description:
+          type: string
+        specializations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Specialization'
+        availability_status:
+          $ref: '#/components/schemas/AvailabilityStatus'
+        price_range_min:
+          type: number
+        price_range_max:
+          type: number
+        location_city:
+          type: string
+        location_address:
+          type: string
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+        review_count:
+          type: integer
+
+    TailorProfileDetailed:
+      allOf:
+        - $ref: '#/components/schemas/TailorProfile'
+        - type: object
+          properties:
+            portfolio:
+              type: array
+              items:
+                $ref: '#/components/schemas/PortfolioItem'
+            reviews:
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+
+    PortfolioItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tailor_id:
+          type: string
+          format: uuid
+        image_url:
+          type: string
+          format: uri
+        title:
+          type: string
+        description:
+          type: string
+        garment_type:
+          $ref: '#/components/schemas/Specialization'
+        created_at:
+          type: string
+          format: date-time
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ── ORDER SCHEMAS ─────────────────────────────────────────────────────────────────
+    CreateOrderRequest:
+      type: object
+      required: [tailorId, garments]
+      properties:
+        tailorId:
+          type: string
+          description: Tailor UUID or readable ID
+        preferred_date:
+          type: string
+          format: date
+          description: Preferred delivery date
+        notes:
+          type: string
+          maxLength: 500
+          description: Optional order notes
+        garments:
+          type: array
+          items:
+            type: object
+            required: [garmentType, quantity]
+            properties:
+              garmentType:
+                type: string
+                enum: [SHIRT, PANTS, SUIT, DRESS, BLOUSE, JACKET, COAT, SKIRT, OTHER]
+                description: Type of garment
+              quantity:
+                type: integer
+                minimum: 1
+                description: Number of garments
+              description:
+                type: string
+                description: Garment description
+              fabric_type:
+                type: string
+                description: Fabric type
+              color:
+                type: string
+                description: Garment color
+
+    UpdateOrderRequest:
+      type: object
+      properties:
+        preferred_date:
+          type: string
+          format: date
+        notes:
+          type: string
+          maxLength: 500
+        booking_status:
+          $ref: '#/components/schemas/BookingStatus'
+
+    OrderRequirementsRequest:
+      type: object
+      required: [measurements]
+      properties:
+        measurements:
+          type: object
+          description: Garment measurements
+          properties:
+            neck:
+              type: number
+              minimum: 0
+            chest:
+              type: number
+              minimum: 0
+            waist:
+              type: number
+              minimum: 0
+            hips:
+              type: number
+              minimum: 0
+            shoulder_width:
+              type: number
+              minimum: 0
+            sleeve_length:
+              type: number
+              minimum: 0
+            inseam:
+              type: number
+              minimum: 0
+            thigh:
+              type: number
+              minimum: 0
+            shirt_length:
+              type: number
+              minimum: 0
+            pant_length:
+              type: number
+              minimum: 0
+        custom_notes:
+          type: string
+          maxLength: 500
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        readable_id:
+          type: string
+          description: Human-readable order ID (e.g., ORD-001)
+        client_id:
+          type: string
+          format: uuid
+        tailor_id:
+          type: string
+          format: uuid
+        booking_status:
+          $ref: '#/components/schemas/BookingStatus'
+        preferred_date:
+          type: string
+          format: date
+        notes:
+          type: string
+        payment_status:
+          $ref: '#/components/schemas/PaymentStatus'
+        total_amount:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        garments:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              garment_type:
+                type: string
+              quantity:
+                type: integer
+              description:
+                type: string
+              delivery_stage:
+                $ref: '#/components/schemas/GarmentStage'
+              stage_history:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    stage:
+                      $ref: '#/components/schemas/GarmentStage'
+                    timestamp:
+                      type: string
+                      format: date-time
+        client:
+          $ref: '#/components/schemas/User'
+        tailor:
+          $ref: '#/components/schemas/User'
+
+    # ── MEASUREMENT SCHEMAS ───────────────────────────────────────────────────────────
+    MeasurementRequest:
+      type: object
+      required: [clientId]
+      properties:
+        clientId:
+          type: string
+          format: uuid
+          description: Client UUID
+        neck:
+          type: number
+          minimum: 0
+        chest:
+          type: number
+          minimum: 0
+        waist:
+          type: number
+          minimum: 0
+        hips:
+          type: number
+          minimum: 0
+        shoulder_width:
+          type: number
+          minimum: 0
+        sleeve_length:
+          type: number
+          minimum: 0
+        inseam:
+          type: number
+          minimum: 0
+        thigh:
+          type: number
+          minimum: 0
+        shirt_length:
+          type: number
+          minimum: 0
+        pant_length:
+          type: number
+          minimum: 0
+        custom_notes:
+          type: string
+          maxLength: 500
+        parent_id:
+          type: string
+          description: Parent measurement ID for versioning
+
+    Measurement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+        neck:
+          type: number
+        chest:
+          type: number
+        waist:
+          type: number
+        hips:
+          type: number
+        shoulder_width:
+          type: number
+        sleeve_length:
+          type: number
+        inseam:
+          type: number
+        thigh:
+          type: number
+        shirt_length:
+          type: number
+        pant_length:
+          type: number
+        custom_notes:
+          type: string
+        parent_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ── STAFF SCHEMAS ────────────────────────────────────────────────────────────────
+    CreateStaffRequest:
+      type: object
+      required: [username, password, full_name, role]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        password:
+          type: string
+          minLength: 8
+          format: password
+        full_name:
+          type: string
+          maxLength: 100
+        role:
+          type: string
+          enum: [STAFF]
+        phone:
+          type: string
+        specialization:
+          type: string
+          description: Staff specialization
+
+    Staff:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        readable_id:
+          type: string
+        username:
+          type: string
+        full_name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        specialization:
+          type: string
+        phone:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    # ── ERROR SCHEMA ─────────────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Error code for programmatic handling
+              enum:
+                - INVALID_CREDENTIALS
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - VALIDATION_ERROR
+                - NOT_FOUND
+                - CAPACITY_EXCEEDED
+                - USERNAME_ALREADY_EXISTS
+                - INVALID_OR_EXPIRED_TOKEN
+                - INVALID_OTP
+                - OTP_EXPIRED
+                - RATE_LIMIT_EXCEEDED
+                - INTERNAL_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              description: Additional error details (optional)
